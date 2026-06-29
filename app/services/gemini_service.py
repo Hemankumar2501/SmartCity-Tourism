@@ -7,7 +7,7 @@ custom, high-quality travel itineraries for the Mega-Tourism ecosystem.
 
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from app.core.config import settings
@@ -89,15 +89,15 @@ ITINERARY_RESPONSE_SCHEMA = {
                 "required": ["day_number", "title", "activities"]
             }
         },
-        "budget_estimate": {
+        "budget_breakdown": {
             "type": "object",
-            "description": "Detailed budget estimation breakdown for the trip",
+            "description": "Detailed itemized budget estimation breakdown for the trip in USD",
             "properties": {
                 "flights": {
                     "type": "number",
                     "description": "Estimated flight/long-distance travel cost in USD"
                 },
-                "accommodation": {
+                "hotel": {
                     "type": "number",
                     "description": "Estimated hotel/accommodation cost in USD"
                 },
@@ -105,16 +105,25 @@ ITINERARY_RESPONSE_SCHEMA = {
                     "type": "number",
                     "description": "Estimated food/dining cost in USD"
                 },
-                "local_transport": {
+                "transport": {
                     "type": "number",
                     "description": "Estimated local transport/transit cost in USD"
                 },
+                "activities": {
+                    "type": "number",
+                    "description": "Estimated activities cost in USD"
+                },
                 "currency": {
                     "type": "string",
-                    "description": "Currency of the estimate, e.g. USD"
+                    "description": "Currency of the estimate, must be USD"
                 }
             },
-            "required": ["flights", "accommodation", "food", "local_transport", "currency"]
+            "required": ["flights", "hotel", "food", "transport", "activities", "currency"]
+        },
+        "packing_list": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Interactive recommended packing checklist items based on the destinations, month of travel, and typical weather"
         }
     },
     "required": [
@@ -123,7 +132,8 @@ ITINERARY_RESPONSE_SCHEMA = {
         "total_estimated_cost",
         "recommendations",
         "itinerary",
-        "budget_estimate"
+        "budget_breakdown",
+        "packing_list"
     ]
 }
 
@@ -207,12 +217,65 @@ class GeminiService:
             # Propagate the exception so the API layer can handle it appropriately
             raise
 
+    async def chat_interaction(self, message: str, history: List[Dict[str, str]], itinerary_context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        Fulfills chat conversations using Gemini, leveraging current itinerary parameters as system instructions.
+        """
+        if self.mock_mode:
+            logger.info("Generating mock chat response.")
+            return self._generate_mock_chat_response(message, itinerary_context)
+
+        try:
+            model = genai.GenerativeModel(self.model_name)
+
+            # Prepare contextual constraints
+            system_directives = (
+                "You are 'WanderBot', a hyper-helpful, friendly AI travel assistant concierge for the WanderWise AI travel ecosystem.\n"
+                "You are helping a traveler who is using your platform.\n"
+            )
+            if itinerary_context:
+                destinations = ", ".join(itinerary_context.get("destinations", []))
+                days = itinerary_context.get("duration_days", 3)
+                total_cost = itinerary_context.get("total_estimated_cost", 0)
+                system_directives += (
+                    f"The user is actively following a generated travel itinerary to: {destinations}.\n"
+                    f"Itinerary Metadata: Duration of {days} Days, Total estimated cost is ${total_cost}.\n"
+                    f"Itinerary JSON Content: {json.dumps(itinerary_context)}.\n"
+                    "Use this plan context to answer user questions with extreme relevancy. For example, if they ask where to eat, check their daily plans or recommend options near their locations.\n"
+                )
+            else:
+                system_directives += "No specific itinerary is currently loaded. Answer general travel planning and smart tourism queries."
+
+            # Construct message context with history
+            messages = []
+            for h in history:
+                role = "user" if h.get("sender") == "user" else "model"
+                messages.append(f"{'User' if role == 'user' else 'WanderBot'}: {h.get('text')}")
+
+            # Append active message
+            messages.append(f"User: {message}")
+            messages.append("WanderBot:")
+
+            full_prompt = system_directives + "\n\nConversation History:\n" + "\n".join(messages)
+
+            response = await model.generate_content_async(full_prompt)
+            return response.text.strip()
+        except Exception as e:
+            logger.error(f"Error calling Gemini in chat interaction: {str(e)}")
+            return f"I'm sorry, I encountered an issue accessing the central AI model: {str(e)}"
+
     def _build_prompt(self, request: ItineraryRequest) -> str:
         """
         Constructs the generative prompt for the Gemini LLM.
         """
         preferences_str = ", ".join(request.preferences) if request.preferences else "None specified"
         destinations_str = ", ".join(request.destinations)
+        travel_month = "current month"
+        if request.start_date:
+            try:
+                travel_month = request.start_date.strftime("%B")
+            except Exception:
+                pass
         
         prompt = f"""
 You are an expert smart-city AI travel planner for the 'Next-Gen Smart City & Mega-Tourism Ecosystem'.
@@ -222,6 +285,7 @@ Create a highly detailed, curated travel itinerary with the following parameters
 - Preferences: {preferences_str}
 - Budget Tier: {request.budget_tier}
 - Number of Travelers: {request.travelers_count}
+- Month of Travel: {travel_month}
 
 You must return a JSON object that strictly adheres to the following structure:
 {{
@@ -244,18 +308,21 @@ You must return a JSON object that strictly adheres to the following structure:
     }}
   ],
   "total_estimated_cost": 1250.00,
-  "budget_estimate": {{
+  "budget_breakdown": {{
     "flights": 400.00,
-    "accommodation": 450.00,
+    "hotel": 450.00,
     "food": 250.00,
-    "local_transport": 150.00,
+    "transport": 100.00,
+    "activities": 50.00,
     "currency": "USD"
   }},
-  "recommendations": ["Recommendation tip 1", "Recommendation tip 2"]
+  "recommendations": ["Recommendation tip 1", "Recommendation tip 2"],
+  "packing_list": ["Pack item 1 (e.g. sunscreen)", "Pack item 2 (e.g. light coat)"]
 }}
 
 You MUST perform geo-coding lookup for each activity's location/landmark and provide accurate "latitude" and "longitude" coordinates.
 Make sure to provide rich, engaging descriptions of the activities leveraging smart-city conveniences (autonomous shuttles, IoT tour guides, smart parks).
+Recommend a smart, concise "packing_list" containing 5-7 items tailored directly to the destinations' typical weather for the month of {travel_month}.
 Return ONLY the raw JSON document. Do not wrap in markdown blocks.
 """
         return prompt
@@ -300,7 +367,7 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
                             time_of_day="Morning",
                             description="Guided tour using smart-city augmented reality glasses.",
                             location=f"{dest} Smart Culture Center",
-                            estimated_cost=round(estimated_cost * 0.1 / request.duration_days, 2),
+                            estimated_cost=round(estimated_cost * 0.05 / request.duration_days, 2),
                             latitude=base_coords[0] + 0.005,
                             longitude=base_coords[1] - 0.005
                         ),
@@ -308,7 +375,7 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
                             time_of_day="Afternoon",
                             description=f"Culinary exploration catering to {', '.join(request.preferences) if request.preferences else 'local'} tastes.",
                             location=f"{dest} Downtown Hyper-Local Marketplace",
-                            estimated_cost=round(estimated_cost * 0.15 / request.duration_days, 2),
+                            estimated_cost=round(estimated_cost * 0.08 / request.duration_days, 2),
                             latitude=base_coords[0] - 0.005,
                             longitude=base_coords[1] + 0.005
                         ),
@@ -335,13 +402,23 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
         else:
             recommendations.append("Notice: Running in Mock Mode because GEMINI_API_KEY is not configured.")
 
-        budget_est = BudgetBreakdown(
-            flights=round(estimated_cost * 0.3, 2),
-            accommodation=round(estimated_cost * 0.4, 2),
-            food=round(estimated_cost * 0.2, 2),
-            local_transport=round(estimated_cost * 0.1, 2),
+        budget_breakdown = BudgetBreakdown(
+            flights=round(estimated_cost * 0.35, 2),
+            hotel=round(estimated_cost * 0.35, 2),
+            food=round(estimated_cost * 0.15, 2),
+            transport=round(estimated_cost * 0.1, 2),
+            activities=round(estimated_cost * 0.05, 2),
             currency="USD"
         )
+
+        packing_list = [
+            "Sunscreen (SPF 50+) & Polarized Sunglasses",
+            "Universal travel power adapter",
+            "Breathable activewear and lightweight jacket",
+            "Refillable insulated water container",
+            "Offline map packages downloaded on WanderWise App",
+            "Sanitizer and small medical safety kit"
+        ]
 
         return ItineraryResponse(
             destinations=request.destinations,
@@ -349,6 +426,27 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
             itinerary=days,
             total_estimated_cost=estimated_cost,
             recommendations=recommendations,
-            budget_estimate=budget_est,
+            budget_breakdown=budget_breakdown,
+            packing_list=packing_list,
             model_version=f"{self.model_name} (mock/fallback)"
         )
+
+    def _generate_mock_chat_response(self, message: str, itinerary_context: Optional[dict] = None) -> str:
+        """
+        Creates smart mock chatbot responses matching current context parameters.
+        """
+        msg_lower = message.lower()
+        dest = "your destinations"
+        if itinerary_context and itinerary_context.get("destinations"):
+            dest = ", ".join(itinerary_context.get("destinations", []))
+
+        if "restaurant" in msg_lower or "food" in msg_lower or "eat" in msg_lower:
+            return f"Here are the top-rated dining spots near the spots in {dest}:\n1. **Gourmet Hub** (Organic, Vegetarian options)\n2. **Metro Dining Hall** (Hyper-local foods)\n3. **SkyLine Lounge** (Stunning smart-city views, book in advance via unified app)."
+        
+        if "shuttle" in msg_lower or "transport" in msg_lower or "bus" in msg_lower:
+            return f"Autonomous shuttle pods in {dest} run every 5 minutes. You can scan your WanderWise smart key card at any smart pole transit station to board instantly."
+
+        if "weather" in msg_lower or "pack" in msg_lower:
+            return f"The average temperature in {dest} is expected to be quite pleasant. Make sure to pack items listed in your checklist, including sun protection and comfortable walking shoes."
+
+        return f"Greetings! As your WanderBot concierge for {dest}, I'm here to help. I see you have a {itinerary_context.get('duration_days', 3)}-day plan configured. What else can I assist you with today?"

@@ -23,6 +23,7 @@ import SessionProviderWrapper from "./components/SessionProviderWrapper";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ThemeSelectorFAB from "./components/ThemeSelectorFAB";
+import WanderBot from "./components/WanderBot";
 
 export default function RootLayout({
   children,
@@ -46,6 +47,7 @@ export default function RootLayout({
                 </main>
                 <Footer />
                 <ThemeSelectorFAB />
+                <WanderBot />
               </div>
             </ThemeProvider>
           </AuthProvider>

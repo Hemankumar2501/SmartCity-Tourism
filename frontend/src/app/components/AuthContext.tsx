@@ -18,7 +18,8 @@ export interface SavedItinerary {
   total_estimated_cost: number;
   itinerary: any[];
   recommendations: string[];
-  budget_estimate?: any;
+  budget_breakdown?: any;
+  packing_list?: string[];
   model_version: string;
 }
 
