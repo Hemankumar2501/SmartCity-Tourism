@@ -9,8 +9,6 @@ import html2canvas from "html2canvas";
 import dynamic from "next/dynamic";
 import { useAuth } from "./AuthContext";
 import { useReactToPrint } from "react-to-print";
-// @ts-ignore
-import html2pdf from "html2pdf.js";
 
 const MapComponent = dynamic(() => import("./MapComponent"), { ssr: false });
 
@@ -190,19 +188,22 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
     documentTitle: `Itinerary-${plan.destinations.join("-")}`,
   });
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const element = document.getElementById("itinerary-container-to-print");
     if (!element) return;
+
+    // Dynamically import html2pdf.js on the client-side
+    // @ts-ignore
+    const html2pdf = (await import("html2pdf.js")).default;
 
     const opt = {
       margin: 10,
       filename: `Itinerary-${plan.destinations.join("-")}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
+      image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: "#070A13" },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
     };
 
-    // @ts-ignore
     html2pdf().from(element).set(opt).save();
   };
 
