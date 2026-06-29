@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { TripService } from "../../lib/db";
 
 interface User {
   name: string;
@@ -9,7 +10,7 @@ interface User {
   avatar: string;
 }
 
-interface SavedItinerary {
+export interface SavedItinerary {
   id: string;
   savedAt: string;
   destinations: string[];
@@ -28,8 +29,8 @@ interface AuthContextType {
   setShowLoginModal: (show: boolean) => void;
   login: () => void;
   logout: () => void;
-  saveItinerary: (itinerary: Omit<SavedItinerary, "id" | "savedAt">) => boolean;
-  deleteItinerary: (id: string) => void;
+  saveItinerary: (itinerary: Omit<SavedItinerary, "id" | "savedAt"> & { id?: string }) => Promise<boolean>;
+  deleteItinerary: (id: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,13 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session]);
 
-  const loadSavedItineraries = (email: string) => {
-    const stored = localStorage.getItem(`saved_itineraries_${email}`);
-    if (stored) {
-      setSavedItineraries(JSON.parse(stored));
-    } else {
-      setSavedItineraries([]);
-    }
+  const loadSavedItineraries = async (email: string) => {
+    const trips = await TripService.getUserTrips(email);
+    setSavedItineraries(trips);
   };
 
   const login = () => {
@@ -75,29 +72,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut();
   };
 
-  const saveItinerary = (itinerary: Omit<SavedItinerary, "id" | "savedAt">): boolean => {
+  const saveItinerary = async (itinerary: Omit<SavedItinerary, "id" | "savedAt"> & { id?: string }): Promise<boolean> => {
     if (!user) {
       setShowLoginModal(true);
       return false;
     }
 
-    const newSaved: SavedItinerary = {
+    await TripService.saveTrip({
       ...itinerary,
-      id: Math.random().toString(36).substring(2, 9),
-      savedAt: new Date().toISOString(),
-    };
+      email: user.email,
+    });
 
-    const updated = [newSaved, ...savedItineraries];
-    setSavedItineraries(updated);
-    localStorage.setItem(`saved_itineraries_${user.email}`, JSON.stringify(updated));
+    await loadSavedItineraries(user.email);
     return true;
   };
 
-  const deleteItinerary = (id: string) => {
+  const deleteItinerary = async (id: string) => {
     if (!user) return;
-    const updated = savedItineraries.filter((item) => item.id !== id);
-    setSavedItineraries(updated);
-    localStorage.setItem(`saved_itineraries_${user.email}`, JSON.stringify(updated));
+    await TripService.deleteTrip(id, user.email);
+    await loadSavedItineraries(user.email);
   };
 
   return (

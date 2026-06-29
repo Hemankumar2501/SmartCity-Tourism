@@ -7,6 +7,7 @@ import ItineraryDisplay from "../components/ItineraryDisplay";
 import ReviewSentiment from "../components/ReviewSentiment";
 import { useAuth } from "../components/AuthContext";
 import { useTheme } from "../components/ThemeContext";
+import { TripService } from "../../lib/db";
 
 interface ActivityItem {
   time_of_day: string;
@@ -32,6 +33,7 @@ interface BudgetEstimate {
 }
 
 interface ItineraryResponse {
+  id?: string;
   destinations: string[];
   duration_days: number;
   itinerary: DailyPlan[];
@@ -98,7 +100,19 @@ export default function ExplorePage() {
       }
 
       const data: ItineraryResponse = await res.json();
-      setGeneratedPlan(data);
+      
+      // Assign UUID and auto-save anonymously
+      const tripId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      const planWithId = {
+        ...data,
+        id: tripId,
+      };
+
+      await TripService.saveTrip(planWithId);
+      setGeneratedPlan(planWithId);
     } catch (err: any) {
       setPlannerError(err.message || "Something went wrong.");
     } finally {

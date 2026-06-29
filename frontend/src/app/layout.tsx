@@ -22,6 +22,7 @@ import { ThemeProvider } from "./components/ThemeContext";
 import SessionProviderWrapper from "./components/SessionProviderWrapper";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import ThemeSelectorFAB from "./components/ThemeSelectorFAB";
 
 export default function RootLayout({
   children,
@@ -32,8 +33,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-[#070A13] text-gray-100 font-sans">
+      <body className="min-h-full flex flex-col bg-slate-50 dark:bg-[#070A13] text-slate-900 dark:text-gray-100 font-sans transition-colors duration-300">
         <SessionProviderWrapper>
           <AuthProvider>
             <ThemeProvider>
@@ -43,6 +45,7 @@ export default function RootLayout({
                   {children}
                 </main>
                 <Footer />
+                <ThemeSelectorFAB />
               </div>
             </ThemeProvider>
           </AuthProvider>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { MapPin, DollarSign, Calendar, Clock, AlertTriangle, Download, Map } from "lucide-react";
+import { MapPin, DollarSign, Calendar, Clock, AlertTriangle, Download, Map, Share2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import dynamic from "next/dynamic";
@@ -36,6 +36,7 @@ interface BudgetEstimate {
 }
 
 interface ItineraryResponse {
+  id?: string;
   destinations: string[];
   duration_days: number;
   itinerary: DailyPlan[];
@@ -85,14 +86,28 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const { user, saveItinerary, setShowLoginModal } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Reset isSaved state when plan changes
   useEffect(() => {
     setIsSaved(false);
   }, [plan]);
 
-  const handleSave = () => {
-    const success = saveItinerary({
+  const handleShare = async () => {
+    if (!plan.id) return;
+    const shareUrl = `${window.location.origin}/trip/${plan.id}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 3000);
+    } catch (err) {
+      console.error("Failed to copy link to clipboard", err);
+    }
+  };
+
+  const handleSave = async () => {
+    const success = await saveItinerary({
+      id: plan.id,
       destinations: plan.destinations,
       duration_days: plan.duration_days,
       total_estimated_cost: plan.total_estimated_cost,
@@ -275,9 +290,20 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
             <button
               onClick={() => setShowLoginModal(true)}
               data-html2canvas-ignore="true"
-              className="flex items-center justify-center gap-2 px-5 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white rounded-xl text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white rounded-xl text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
             >
               Sign In to Save
+            </button>
+          )}
+
+          {plan.id && (
+            <button
+              onClick={handleShare}
+              data-html2canvas-ignore="true"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white rounded-xl text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              <Share2 className="w-4 h-4 text-cyan-500" />
+              {shareCopied ? "Link Copied!" : "Share Trip"}
             </button>
           )}
 
