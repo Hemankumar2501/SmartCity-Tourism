@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Gemini LLM Service Configuration
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # Application Environment
     ENVIRONMENT: str = "development"  # development, staging, production
