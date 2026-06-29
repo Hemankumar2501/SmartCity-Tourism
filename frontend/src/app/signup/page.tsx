@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -34,14 +35,30 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    // Mock signup delay
-    setTimeout(() => {
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message || "Failed to create account.");
+      } else {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      }
+    } catch (err: any) {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
       setLoading(false);
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
-    }, 1500);
+    }
   };
 
   return (
@@ -89,7 +106,7 @@ export default function SignupPage() {
             className="flex items-start gap-2.5 p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs"
           >
             <CheckSquare className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>Registration successful! Redirecting to login...</span>
+            <span>Registration successful! Please check email or redirecting...</span>
           </motion.div>
         )}
 

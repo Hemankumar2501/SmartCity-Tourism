@@ -11,12 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl || "https://dummy-url.supabase.co",
-  supabaseAnonKey || "dummy-anon-key",
-  {
-    auth: {
-      persistSession: false,
-    },
-  }
+  supabaseAnonKey || "dummy-anon-key"
 );
 
 // Connection test helper with console logs for debugging

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { signIn } from "next-auth/react";
+import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -29,16 +29,18 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const res = await signIn("credentials", {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        redirect: false,
-        callbackUrl: "/",
       });
 
-      if (res?.error) {
-        setError("Invalid credentials. Try any password with at least 6 characters.");
+      if (authError) {
+        setError(authError.message || "Invalid credentials.");
       } else {
+        // Sync active token to cookies immediately for middleware
+        if (data.session) {
+          document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+        }
         router.push("/");
         router.refresh();
       }
@@ -51,7 +53,15 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: "/" });
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? window.location.origin : "/",
+        },
+      });
+      if (authError) {
+        setError(authError.message);
+      }
     } catch (err) {
       setError("Google authentication failed.");
     }

@@ -21,7 +21,6 @@ export const metadata: Metadata = {
 import { AuthProvider } from "./components/AuthContext";
 import { ThemeProvider } from "./components/ThemeContext";
 import { CurrencyProvider } from "./components/CurrencyContext";
-import SessionProviderWrapper from "./components/SessionProviderWrapper";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ThemeSelectorFAB from "./components/ThemeSelectorFAB";
@@ -39,23 +38,21 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-slate-50 dark:bg-[#070A13] text-slate-900 dark:text-gray-100 font-sans transition-colors duration-300">
-        <SessionProviderWrapper>
-          <AuthProvider>
-            <ThemeProvider>
-              <CurrencyProvider>
-                <div className="flex-1 flex flex-col min-h-screen">
-                  <Navbar />
-                  <main className="flex-1 flex flex-col relative">
-                    {children}
-                  </main>
-                  <Footer />
-                  <ThemeSelectorFAB />
-                  <WanderBot />
-                </div>
-              </CurrencyProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </SessionProviderWrapper>
+        <AuthProvider>
+          <ThemeProvider>
+            <CurrencyProvider>
+              <div className="flex-1 flex flex-col min-h-screen">
+                <Navbar />
+                <main className="flex-1 flex flex-col relative">
+                  {children}
+                </main>
+                <Footer />
+                <ThemeSelectorFAB />
+                <WanderBot />
+              </div>
+            </CurrencyProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

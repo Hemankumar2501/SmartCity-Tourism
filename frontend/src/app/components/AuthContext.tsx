@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { supabase } from "../../lib/supabaseClient";
 import { TripService } from "../../lib/db";
 
 interface User {
@@ -37,28 +37,50 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [savedItineraries, setSavedItineraries] = useState<SavedItinerary[]>([]);
 
-  // Synchronize next-auth session with internal auth state
+  // Synchronize Supabase authentication state
   useEffect(() => {
-    if (session?.user) {
-      const email = session.user.email || "anonymous@skygrid.io";
-      const loggedUser: User = {
-        name: session.user.name || "Smart Tourist",
-        email: email,
-        avatar: session.user.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
-      };
-      setUser(loggedUser);
-      loadSavedItineraries(email);
-      setShowLoginModal(false);
-    } else {
-      setUser(null);
-      setSavedItineraries([]);
-    }
-  }, [session]);
+    // Check current active session on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const email = session.user.email || "anonymous@skygrid.io";
+        const name = session.user.user_metadata?.full_name || email.split("@")[0] || "Smart Tourist";
+        setUser({
+          name,
+          email,
+          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+        });
+        loadSavedItineraries(email);
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const email = session.user.email || "anonymous@skygrid.io";
+        const name = session.user.user_metadata?.full_name || email.split("@")[0] || "Smart Tourist";
+        setUser({
+          name,
+          email,
+          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+        });
+        loadSavedItineraries(email);
+        setShowLoginModal(false);
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+      } else {
+        setUser(null);
+        setSavedItineraries([]);
+        document.cookie = `sb-access-token=; path=/; max-age=0; SameSite=Lax; Secure`;
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const loadSavedItineraries = async (email: string) => {
     const trips = await TripService.getUserTrips(email);
@@ -66,11 +88,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = () => {
-    signIn("google");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   };
 
-  const logout = () => {
-    signOut();
+  const logout = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   };
 
   const saveItinerary = async (itinerary: Omit<SavedItinerary, "id" | "savedAt"> & { id?: string }): Promise<boolean> => {
@@ -109,14 +136,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
 
-      {/* Beautiful Google Login NextAuth Dialog */}
+      {/* Beautiful Supabase Login Modal fallback */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-[#070A13]/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="text-center space-y-2">
               <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto border border-white/10 shadow-md">
-                {/* Google Logo SVG */}
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
@@ -136,9 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-100">Sign in with Google</h3>
+              <h3 className="text-lg font-bold text-gray-100">Sign in to WanderWise</h3>
               <p className="text-xs text-gray-400 text-center">
-                Securely sign in using your Google credentials to manage and save your customized travel itineraries.
+                Securely sign in to manage and save your customized travel itineraries.
               </p>
             </div>
 
@@ -148,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 onClick={login}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 rounded-xl text-sm font-bold text-white transition-all duration-300 shadow-[0_4px_15px_rgba(6,182,212,0.2)] hover:scale-[1.01] active:scale-95 cursor-pointer"
               >
-                Authenticate with Google
+                Authenticate with Email / Google
               </button>
             </div>
 
