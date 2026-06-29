@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { MapPin, DollarSign, Calendar, Clock, AlertTriangle } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { MapPin, DollarSign, Calendar, Clock, AlertTriangle, Download, Map } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import dynamic from "next/dynamic";
+
+const MapComponent = dynamic(() => import("./MapComponent"), { ssr: false });
 
 interface Activity {
   time_of_day: string;
@@ -42,6 +47,35 @@ interface ItineraryDisplayProps {
 
 const COLORS = ["#06B6D4", "#6366F1", "#EC4899", "#10B981", "#F59E0B"];
 
+const CITY_COORDINATES: Record<string, [number, number]> = {
+  "dubai": [25.2048, 55.2708],
+  "abu dhabi": [24.4539, 54.3773],
+  "chennai": [13.0827, 80.2707],
+  "madurai": [9.9252, 78.1198],
+  "singapore": [1.3521, 103.8198],
+  "kuala lumpur": [3.1390, 101.6869],
+  "tokyo": [35.6762, 139.6503],
+  "bangkok": [13.7563, 100.5018]
+};
+
+const getCoordinatesForLocation = (locationName: string, city: string, index: number): [number, number] => {
+  const normalizedCity = city.toLowerCase().trim();
+  let base: [number, number] = [25.2048, 55.2708];
+  
+  for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
+    if (normalizedCity.includes(key) || key.includes(normalizedCity)) {
+      base = coords;
+      break;
+    }
+  }
+
+  const hash = locationName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const latOffset = (((hash + index * 17) % 80) - 40) / 1000;
+  const lngOffset = (((hash * 13 + index * 23) % 80) - 40) / 1000;
+  
+  return [base[0] + latOffset, base[1] + lngOffset];
+};
+
 export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   const [mounted, setMounted] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(1);
@@ -50,6 +84,72 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const mapPins = useMemo(() => {
+    const pins: any[] = [];
+    const mainCity = plan.destinations[0] || "Dubai";
+    
+    plan.itinerary.forEach((day) => {
+      day.activities.forEach((act, idx) => {
+        pins.push({
+          dayNumber: day.day_number,
+          timeOfDay: act.time_of_day,
+          location: act.location,
+          description: act.description,
+          coordinates: getCoordinatesForLocation(act.location, act.location.includes(",") ? act.location.split(",")[1] : mainCity, idx + day.day_number)
+        });
+      });
+    });
+    return pins;
+  }, [plan]);
+
+  const mapCenter = useMemo<[number, number]>(() => {
+    if (mapPins.length > 0) {
+      return mapPins[0].coordinates;
+    }
+    const mainCity = plan.destinations[0] || "Dubai";
+    const normalizedCity = mainCity.toLowerCase().trim();
+    for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
+      if (normalizedCity.includes(key) || key.includes(normalizedCity)) {
+        return coords;
+      }
+    }
+    return [25.2048, 55.2708];
+  }, [mapPins, plan.destinations]);
+
+  const downloadPDF = async () => {
+    const element = document.getElementById("itinerary-container-to-export");
+    if (!element) return;
+    
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#070A13",
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`Itinerary-${plan.destinations.join("-")}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+    }
+  };
 
   // Compute budget breakdown for the chart
   const getBudgetBreakdown = () => {
@@ -81,7 +181,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   const chartData = getBudgetBreakdown();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full max-w-6xl mx-auto">
+    <div id="itinerary-container-to-export" className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full max-w-6xl mx-auto p-4 rounded-3xl bg-[#070A13]">
       {/* Overview Card */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -101,17 +201,28 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 rounded-xl p-4 flex items-center gap-4">
-          <div className="p-3 bg-cyan-500/20 rounded-lg">
-            <DollarSign className="w-6 h-6 text-cyan-400" />
-          </div>
-          <div>
-            <span className="text-xs text-gray-400 uppercase tracking-wider block">
-              Total Budget
-            </span>
-            <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
-              ${plan.total_estimated_cost.toLocaleString()}
-            </span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          <button
+            onClick={downloadPDF}
+            data-html2canvas-ignore="true"
+            className="flex items-center justify-center gap-2 px-5 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-sm font-bold shadow-[0_4px_15px_rgba(16,185,129,0.2)] transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            Download PDF
+          </button>
+
+          <div className="bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 rounded-xl p-4 flex items-center gap-4">
+            <div className="p-3 bg-cyan-500/20 rounded-lg">
+              <DollarSign className="w-6 h-6 text-cyan-400" />
+            </div>
+            <div>
+              <span className="text-xs text-gray-400 uppercase tracking-wider block">
+                Total Budget
+              </span>
+              <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
+                ${plan.total_estimated_cost.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -119,7 +230,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
       {/* Vertical Itinerary Timeline */}
       <div className="lg:col-span-7 space-y-6">
         {/* Day Selector tabs */}
-        <div className="flex gap-2 pb-2 overflow-x-auto scrollbar-thin">
+        <div data-html2canvas-ignore="true" className="flex gap-2 pb-2 overflow-x-auto scrollbar-thin">
           {plan.itinerary.map((day) => (
             <button
               key={day.day_number}
@@ -297,6 +408,17 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Map Card */}
+        <div data-html2canvas-ignore="true" className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-xl flex flex-col gap-4">
+          <div className="flex items-center gap-2 text-gray-200">
+            <Map className="w-5 h-5 text-cyan-400 animate-pulse" />
+            <h3 className="text-lg font-bold">Interactive Route Map</h3>
+          </div>
+          <div className="w-full h-[280px] rounded-xl overflow-hidden relative border border-white/5 bg-slate-950">
+            {mounted && <MapComponent pins={mapPins} center={mapCenter} />}
           </div>
         </div>
 
