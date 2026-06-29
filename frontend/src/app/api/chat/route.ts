@@ -14,6 +14,7 @@ export async function POST(req: Request) {
         message: body.message,
         history: body.history || [],
         itinerary_context: body.itinerary || null,
+        language: body.language || "English",
       }),
     });
 

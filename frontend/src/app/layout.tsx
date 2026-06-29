@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 import { AuthProvider } from "./components/AuthContext";
 import { ThemeProvider } from "./components/ThemeContext";
+import { CurrencyProvider } from "./components/CurrencyContext";
 import SessionProviderWrapper from "./components/SessionProviderWrapper";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -41,15 +42,17 @@ export default function RootLayout({
         <SessionProviderWrapper>
           <AuthProvider>
             <ThemeProvider>
-              <div className="flex-1 flex flex-col min-h-screen">
-                <Navbar />
-                <main className="flex-1 flex flex-col relative">
-                  {children}
-                </main>
-                <Footer />
-                <ThemeSelectorFAB />
-                <WanderBot />
-              </div>
+              <CurrencyProvider>
+                <div className="flex-1 flex flex-col min-h-screen">
+                  <Navbar />
+                  <main className="flex-1 flex flex-col relative">
+                    {children}
+                  </main>
+                  <Footer />
+                  <ThemeSelectorFAB />
+                  <WanderBot />
+                </div>
+              </CurrencyProvider>
             </ThemeProvider>
           </AuthProvider>
         </SessionProviderWrapper>

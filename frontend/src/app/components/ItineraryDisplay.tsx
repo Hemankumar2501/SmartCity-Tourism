@@ -16,6 +16,7 @@ import dynamic from "next/dynamic";
 import { useAuth } from "./AuthContext";
 import { useReactToPrint } from "react-to-print";
 import { useTheme } from "./ThemeContext";
+import { useCurrency, CURRENCY_SYMBOLS } from "./CurrencyContext";
 
 const MapComponent = dynamic(() => import("./MapComponent"), { ssr: false });
 
@@ -71,6 +72,7 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
 };
 
 export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
+  const { currency: preferredCurrency, format: formatCurrency, convert: convertCurrency } = useCurrency();
   const [mounted, setMounted] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const { user, saveItinerary, setShowLoginModal } = useAuth();
@@ -307,11 +309,11 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
 
   const budget = getBudgetBreakdown();
   const chartData = [
-    { name: "Flights", value: budget.flights },
-    { name: "Hotel", value: budget.hotel },
-    { name: "Food", value: budget.food },
-    { name: "Transport", value: budget.transport },
-    { name: "Activities", value: budget.activities }
+    { name: "Flights", value: convertCurrency(budget.flights) },
+    { name: "Hotel", value: convertCurrency(budget.hotel) },
+    { name: "Food", value: convertCurrency(budget.food) },
+    { name: "Transport", value: convertCurrency(budget.transport) },
+    { name: "Activities", value: convertCurrency(budget.activities) }
   ].filter(item => item.value > 0);
 
   // Dynamic Theme Colors for Charts
@@ -402,7 +404,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
                 Total Budget
               </span>
               <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
-                ${plan.total_estimated_cost.toLocaleString()}
+                {formatCurrency(plan.total_estimated_cost)}
               </span>
             </div>
           </div>
@@ -510,8 +512,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
 
                               {act.estimated_cost !== null && (
                                 <div className="px-3 py-1 bg-white/5 rounded-lg border border-white/10 font-bold text-xs text-emerald-400 flex items-center gap-0.5">
-                                  <DollarSign className="w-3 h-3" />
-                                  <span>{act.estimated_cost}</span>
+                                  <span>{formatCurrency(act.estimated_cost)}</span>
                                 </div>
                               )}
                             </div>
@@ -594,6 +595,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
                           ))}
                         </Pie>
                         <Tooltip
+                          formatter={(value) => [`${CURRENCY_SYMBOLS[preferredCurrency]}${Number(value).toLocaleString()}`, "Estimated Cost"]}
                           contentStyle={{
                             backgroundColor: "rgba(11, 15, 25, 0.95)",
                             borderColor: "rgba(255, 255, 255, 0.1)",
@@ -635,6 +637,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
                           tickLine={false} 
                         />
                         <Tooltip
+                          formatter={(value) => [`${CURRENCY_SYMBOLS[preferredCurrency]}${Number(value).toLocaleString()}`, "Estimated Cost"]}
                           contentStyle={{
                             backgroundColor: "rgba(11, 15, 25, 0.95)",
                             borderColor: "rgba(255, 255, 255, 0.1)",
@@ -662,7 +665,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
               {chartData.map((item, idx) => (
                 <div key={idx} className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-1">
                   <span className="text-[10px] text-gray-400 uppercase tracking-wider block font-bold">{item.name}</span>
-                  <span className="text-lg font-extrabold text-gray-200">${item.value.toLocaleString()}</span>
+                  <span className="text-lg font-extrabold text-gray-200">{CURRENCY_SYMBOLS[preferredCurrency]}{item.value.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -795,8 +798,8 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
             <p className="text-sm text-slate-500 mt-1">Smart City custom travel planner details</p>
           </div>
           <div className="text-right">
-            <div className="text-lg font-black text-indigo-600">${plan.total_estimated_cost.toLocaleString()}</div>
-            <div className="text-xs text-slate-400">Total Budget ({budget.currency})</div>
+            <div className="text-lg font-black text-indigo-600">{formatCurrency(plan.total_estimated_cost)}</div>
+            <div className="text-xs text-slate-400">Total Budget ({preferredCurrency})</div>
           </div>
         </div>
 
@@ -824,7 +827,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
                   <div key={idx} className="text-xs">
                     <div className="flex justify-between font-semibold text-slate-700">
                       <span>{act.time_of_day} - {act.location}</span>
-                      {act.estimated_cost !== null && <span>${act.estimated_cost}</span>}
+                      {act.estimated_cost !== null && <span>{formatCurrency(act.estimated_cost)}</span>}
                     </div>
                     <p className="text-slate-500 mt-1">{act.description}</p>
                   </div>
@@ -841,33 +844,33 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-2">Expense Category</th>
-                <th className="py-2 text-right">Estimated Cost ({budget.currency})</th>
+                <th className="py-2 text-right">Estimated Cost ({preferredCurrency})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               <tr>
                 <td className="py-2">Flights</td>
-                <td className="py-2 text-right">${budget.flights.toLocaleString()}</td>
+                <td className="py-2 text-right">{formatCurrency(budget.flights)}</td>
               </tr>
               <tr>
                 <td className="py-2">Hotel Accommodation</td>
-                <td className="py-2 text-right">${budget.hotel.toLocaleString()}</td>
+                <td className="py-2 text-right">{formatCurrency(budget.hotel)}</td>
               </tr>
               <tr>
                 <td className="py-2">Food / Dining</td>
-                <td className="py-2 text-right">${budget.food.toLocaleString()}</td>
+                <td className="py-2 text-right">{formatCurrency(budget.food)}</td>
               </tr>
               <tr>
                 <td className="py-2">Local Transport</td>
-                <td className="py-2 text-right">${budget.transport.toLocaleString()}</td>
+                <td className="py-2 text-right">{formatCurrency(budget.transport)}</td>
               </tr>
               <tr>
                 <td className="py-2">Activities</td>
-                <td className="py-2 text-right">${budget.activities.toLocaleString()}</td>
+                <td className="py-2 text-right">{formatCurrency(budget.activities)}</td>
               </tr>
               <tr className="font-bold text-slate-900 border-t-2 border-slate-200">
                 <td className="py-2">Total Estimated Cost</td>
-                <td className="py-2 text-right">${plan.total_estimated_cost.toLocaleString()}</td>
+                <td className="py-2 text-right">{formatCurrency(plan.total_estimated_cost)}</td>
               </tr>
             </tbody>
           </table>

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
-import { Cpu, LogOut, Heart, Users, User, Compass, Map, LayoutDashboard } from "lucide-react";
+import { useCurrency } from "./CurrencyContext";
+import { Cpu, LogOut, Heart, Users, User, Compass, Map, LayoutDashboard, Globe } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, login, logout } = useAuth();
   const { theme, setTheme, themeClasses } = useTheme();
+  const { currency, setCurrency } = useCurrency();
 
   const navLinks = [
     { name: "Home", href: "/", icon: Compass },
@@ -60,6 +62,28 @@ export default function Navbar() {
 
       {/* Theme Toggles & Authentication */}
       <div className="flex items-center gap-4">
+        {/* Currency Switcher */}
+        <div className="relative flex items-center">
+          <Globe className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value as any)}
+            className="appearance-none bg-slate-100 dark:bg-slate-900/50 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-gray-200 text-xs font-bold pl-8 pr-7 py-1.5 rounded-lg border border-slate-200 dark:border-white/5 focus:outline-none focus:border-cyan-500 cursor-pointer transition-colors duration-200"
+          >
+            <option value="USD">USD ($)</option>
+            <option value="INR">INR (₹)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="GBP">GBP (£)</option>
+            <option value="JPY">JPY (¥)</option>
+            <option value="AUD">AUD (A$)</option>
+          </select>
+          <div className="pointer-events-none absolute right-2 flex items-center text-slate-400">
+            <svg className="fill-current h-3 w-3" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+            </svg>
+          </div>
+        </div>
+
         {/* Quick Vibe Toggles */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg border border-slate-200 dark:border-white/5">
           <button

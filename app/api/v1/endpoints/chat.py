@@ -21,6 +21,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="The active query message text")
     history: List[ChatMessage] = Field(default=[], description="The previous messages thread history")
     itinerary_context: Optional[Dict[str, Any]] = Field(None, description="Active itinerary object details context")
+    language: str = Field("English", description="The language selected by the user for translation responses")
 
 
 class ChatResponse(BaseModel):
@@ -53,7 +54,8 @@ async def chat_with_concierge(
         reply = await service.chat_interaction(
             message=request.message,
             history=history_dict,
-            itinerary_context=request.itinerary_context
+            itinerary_context=request.itinerary_context,
+            language=request.language
         )
         return ChatResponse(response=reply)
     except Exception as e:

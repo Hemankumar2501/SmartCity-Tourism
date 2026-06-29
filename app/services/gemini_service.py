@@ -217,13 +217,13 @@ class GeminiService:
             # Propagate the exception so the API layer can handle it appropriately
             raise
 
-    async def chat_interaction(self, message: str, history: List[Dict[str, str]], itinerary_context: Optional[Dict[str, Any]] = None) -> str:
+    async def chat_interaction(self, message: str, history: List[Dict[str, str]], itinerary_context: Optional[Dict[str, Any]] = None, language: str = "English") -> str:
         """
         Fulfills chat conversations using Gemini, leveraging current itinerary parameters as system instructions.
         """
         if self.mock_mode:
             logger.info("Generating mock chat response.")
-            return self._generate_mock_chat_response(message, itinerary_context)
+            return self._generate_mock_chat_response(message, itinerary_context, language)
 
         try:
             model = genai.GenerativeModel(self.model_name)
@@ -231,6 +231,7 @@ class GeminiService:
             # Prepare contextual constraints
             system_directives = (
                 "You are 'WanderBot', a hyper-helpful, friendly AI travel assistant concierge for the WanderWise AI travel ecosystem.\n"
+                f"You MUST respond entirely in the language requested by the user: {language}. Do not use English unless the requested language is English. Under all circumstances, respond in {language}.\n"
                 "You are helping a traveler who is using your platform.\n"
             )
             if itinerary_context:
@@ -431,22 +432,39 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
             model_version=f"{self.model_name} (mock/fallback)"
         )
 
-    def _generate_mock_chat_response(self, message: str, itinerary_context: Optional[dict] = None) -> str:
+    def _generate_mock_chat_response(self, message: str, itinerary_context: Optional[dict] = None, language: str = "English") -> str:
         """
-        Creates smart mock chatbot responses matching current context parameters.
+        Creates smart mock chatbot responses matching current context parameters and chosen language.
         """
         msg_lower = message.lower()
         dest = "your destinations"
         if itinerary_context and itinerary_context.get("destinations"):
             dest = ", ".join(itinerary_context.get("destinations", []))
 
+        # Basic translation markers to prove backend translation works in mock mode
+        lang_prefix = ""
+        if language == "Tamil":
+          lang_prefix = "[Tamil Guide (தமிழ்)] வணக்கம்! "
+        elif language == "Spanish":
+          lang_prefix = "[Spanish Guide (Español)] ¡Hola! "
+        elif language == "French":
+          lang_prefix = "[French Guide (Français)] Bonjour! "
+        elif language == "Hindi":
+          lang_prefix = "[Hindi Guide (हिन्दी)] नमस्ते! "
+        elif language == "Chinese":
+          lang_prefix = "[Chinese Guide (中文)] 你好! "
+        elif language == "Arabic":
+          lang_prefix = "[Arabic Guide (العربية)] مرحبًا! "
+        else:
+          lang_prefix = "[English Guide] Hi! "
+
         if "restaurant" in msg_lower or "food" in msg_lower or "eat" in msg_lower:
-            return f"Here are the top-rated dining spots near the spots in {dest}:\n1. **Gourmet Hub** (Organic, Vegetarian options)\n2. **Metro Dining Hall** (Hyper-local foods)\n3. **SkyLine Lounge** (Stunning smart-city views, book in advance via unified app)."
+            return lang_prefix + f"Here are the top-rated dining spots near the spots in {dest}:\n1. **Gourmet Hub** (Organic, Vegetarian options)\n2. **Metro Dining Hall** (Hyper-local foods)\n3. **SkyLine Lounge** (Stunning smart-city views, book in advance via unified app)."
         
         if "shuttle" in msg_lower or "transport" in msg_lower or "bus" in msg_lower:
-            return f"Autonomous shuttle pods in {dest} run every 5 minutes. You can scan your WanderWise smart key card at any smart pole transit station to board instantly."
+            return lang_prefix + f"Autonomous shuttle pods in {dest} run every 5 minutes. You can scan your WanderWise smart key card at any smart pole transit station to board instantly."
 
         if "weather" in msg_lower or "pack" in msg_lower:
-            return f"The average temperature in {dest} is expected to be quite pleasant. Make sure to pack items listed in your checklist, including sun protection and comfortable walking shoes."
+            return lang_prefix + f"The average temperature in {dest} is expected to be quite pleasant. Make sure to pack items listed in your checklist, including sun protection and comfortable walking shoes."
 
-        return f"Greetings! As your WanderBot concierge for {dest}, I'm here to help. I see you have a {itinerary_context.get('duration_days', 3)}-day plan configured. What else can I assist you with today?"
+        return lang_prefix + f"As your WanderBot concierge for {dest}, I'm here to help in {language}. I see you have a {itinerary_context.get('duration_days', 3)}-day plan configured. What else can I assist you with today?"
