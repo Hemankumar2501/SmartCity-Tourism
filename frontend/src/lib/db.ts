@@ -1,6 +1,14 @@
 import { SavedItinerary } from "../app/components/AuthContext";
 import { supabase } from "./supabaseClient";
 
+export interface MemoryItem {
+  id: string;
+  savedAt: string;
+  imageUrl: string;
+  caption: string;
+  email: string;
+}
+
 // Key prefixes for localStorage storage fallback
 const LOCAL_STORAGE_TRIP_PREFIX = "wanderwise_trip_";
 const LOCAL_STORAGE_USER_INDEX_PREFIX = "wanderwise_user_trips_";
@@ -289,4 +297,157 @@ export const TripService = {
 
     return true;
   },
+
+  /**
+   * Saves a travel memory Polaroid.
+   */
+  async saveMemory(memory: Omit<MemoryItem, "id" | "savedAt"> & { id?: string; email?: string }): Promise<MemoryItem> {
+    const memId = memory.id || Math.random().toString(36).substring(2, 15);
+    const savedAt = new Date().toISOString();
+    const savedMemory: MemoryItem = {
+      id: memId,
+      savedAt,
+      imageUrl: memory.imageUrl,
+      caption: memory.caption,
+      email: memory.email || "anonymous"
+    };
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from("memories").upsert({
+          id: memId,
+          saved_at: savedAt,
+          image_url: memory.imageUrl,
+          caption: memory.caption,
+          email: memory.email || "anonymous"
+        });
+
+        if (error) {
+          console.warn("[Supabase] Failed to save memory, falling back to localStorage:", error.message);
+        } else {
+          console.log("[Supabase] Memory saved successfully.");
+          this.cacheMemoryLocally(savedMemory);
+          return savedMemory;
+        }
+      } catch (err: any) {
+        console.error("[Supabase] Exception saving memory, falling back to localStorage:", err.message || err);
+      }
+    }
+
+    this.cacheMemoryLocally(savedMemory);
+    return savedMemory;
+  },
+
+  cacheMemoryLocally(memory: MemoryItem) {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(`wanderwise_memory_${memory.id}`, JSON.stringify(memory));
+      const userMemoriesKey = `wanderwise_user_memories_${memory.email}`;
+      const index = localStorage.getItem(userMemoriesKey);
+      let ids: string[] = index ? JSON.parse(index) : [];
+      if (!ids.includes(memory.id)) {
+        ids.unshift(memory.id);
+        localStorage.setItem(userMemoriesKey, JSON.stringify(ids));
+      }
+    } catch (err) {
+      console.error("[TripService] Local memory cache failed:", err);
+    }
+  },
+
+  /**
+   * Retrieves all travel memories for a user.
+   */
+  async getUserMemories(email: string): Promise<MemoryItem[]> {
+    const emailKey = email || "anonymous";
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from("memories")
+          .select("*")
+          .eq("email", emailKey)
+          .order("saved_at", { ascending: false });
+
+        if (error) {
+          console.warn("[Supabase] Failed to fetch memories, falling back to localStorage:", error.message);
+        } else if (data) {
+          const normalized: MemoryItem[] = data.map((d: any) => ({
+            id: d.id,
+            savedAt: d.saved_at || d.savedAt,
+            imageUrl: d.image_url || d.imageUrl,
+            caption: d.caption,
+            email: d.email,
+          }));
+
+          if (typeof window !== "undefined") {
+            normalized.forEach((mem) => this.cacheMemoryLocally(mem));
+          }
+          return normalized;
+        }
+      } catch (err: any) {
+        console.error("[Supabase] getUserMemories failed, using local storage:", err.message || err);
+      }
+    }
+
+    if (typeof window === "undefined") return [];
+
+    const userMemoriesKey = `wanderwise_user_memories_${emailKey}`;
+    const index = localStorage.getItem(userMemoriesKey);
+    if (!index) return [];
+
+    try {
+      const ids: string[] = JSON.parse(index);
+      const memories: MemoryItem[] = [];
+      for (const id of ids) {
+        const item = localStorage.getItem(`wanderwise_memory_${id}`);
+        if (item) {
+          memories.push(JSON.parse(item));
+        }
+      }
+      return memories;
+    } catch (err) {
+      console.error("[TripService] Error loading user memories:", err);
+      return [];
+    }
+  },
+
+  /**
+   * Deletes a travel memory.
+   */
+  async deleteMemory(id: string, email: string): Promise<boolean> {
+    const emailKey = email || "anonymous";
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from("memories")
+          .delete()
+          .eq("id", id)
+          .eq("email", emailKey);
+
+        if (error) {
+          console.warn("[Supabase] Failed to delete memory from DB, falling back to local cache:", error.message);
+        }
+      } catch (err: any) {
+        console.error("[Supabase] deleteMemory exception, applying local cache removal:", err.message || err);
+      }
+    }
+
+    if (typeof window === "undefined") return false;
+
+    localStorage.removeItem(`wanderwise_memory_${id}`);
+    const userMemoriesKey = `wanderwise_user_memories_${emailKey}`;
+    const index = localStorage.getItem(userMemoriesKey);
+    if (index) {
+      try {
+        let ids: string[] = JSON.parse(index);
+        ids = ids.filter((currId) => currId !== id);
+        localStorage.setItem(userMemoriesKey, JSON.stringify(ids));
+      } catch (err) {
+        console.error("[TripService] Error updating memories index during deletion:", err);
+      }
+    }
+
+    return true;
+  }
 };

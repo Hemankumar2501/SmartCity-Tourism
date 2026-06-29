@@ -307,6 +307,78 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
     };
   };
 
+  const getSafetyDetails = () => {
+    const city = (plan.destinations[0] || "").toLowerCase().trim();
+    if (city.includes("dubai") || city.includes("abu dhabi")) {
+      return {
+        police: "999",
+        ambulance: "998",
+        fire: "997",
+        language: "Arabic",
+        phrases: [
+          { local: "مساعدة (Musaa'adah)", english: "Help" },
+          { local: "شكرا (Shukran)", english: "Thank you" },
+          { local: "أين المستشفى؟ (Ayna al-mustashfa?)", english: "Where is the hospital?" },
+          { local: "شرطة (Shurtah)", english: "Police" }
+        ]
+      };
+    }
+    if (city.includes("singapore")) {
+      return {
+        police: "999",
+        ambulance: "995",
+        fire: "995",
+        language: "Malay / Mandarin",
+        phrases: [
+          { local: "Tolong! / 救命! (Jiùmìng!)", english: "Help" },
+          { local: "Terima Kasih / 谢谢 (Xièxiè)", english: "Thank you" },
+          { local: "Di mana hospital? / 医院在哪里?", english: "Where is the hospital?" },
+          { local: "Polis / 警察 (Jǐngchá)", english: "Police" }
+        ]
+      };
+    }
+    if (city.includes("tokyo")) {
+      return {
+        police: "110",
+        ambulance: "119",
+        fire: "119",
+        language: "Japanese",
+        phrases: [
+          { local: "助けて (Tasukete)", english: "Help!" },
+          { local: "ありがとう (Arigatou)", english: "Thank you" },
+          { local: "病院はどこですか (Byouin wa doko desu ka)", english: "Where is the hospital?" },
+          { local: "警察 (Keisatsu)", english: "Police" }
+        ]
+      };
+    }
+    if (city.includes("chennai") || city.includes("madurai")) {
+      return {
+        police: "100",
+        ambulance: "108",
+        fire: "101",
+        language: "Tamil / Hindi",
+        phrases: [
+          { local: "உதவி (Udhavi) / मदद (Madad)", english: "Help" },
+          { local: "நன்றி (Nandri) / धन्यवाद (Dhanyavaad)", english: "Thank you" },
+          { local: "மருத்துவமனை எங்கே? / अस्पताल कहाँ है?", english: "Where is the hospital?" },
+          { local: "காவல்துறை / पुलिस (Police)", english: "Police" }
+        ]
+      };
+    }
+    return {
+      police: "112 / 911",
+      ambulance: "112 / 911",
+      fire: "112 / 911",
+      language: "Local Language",
+      phrases: [
+        { local: "Help", english: "Help" },
+        { local: "Thank you", english: "Thank you" },
+        { local: "Where is the hospital?", english: "Where is the hospital?" },
+        { local: "Police", english: "Police" }
+      ]
+    };
+  };
+
   const budget = getBudgetBreakdown();
   const chartData = [
     { name: "Flights", value: convertCurrency(budget.flights) },
@@ -681,7 +753,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
             className="grid grid-cols-1 md:grid-cols-12 gap-8 w-full"
           >
             {/* Left Checklist */}
-            <div className="md:col-span-7 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-6">
+            <div className="md:col-span-6 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-6">
               <div>
                 <h3 className="text-lg font-bold text-indigo-300 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-indigo-400" />
@@ -713,65 +785,119 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
               </div>
             </div>
 
-            {/* Right Widget */}
-            <div className="md:col-span-5 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-cyan-400 animate-pulse" />
-                  Local Vibe Widget
-                </h3>
-                <p className="text-xs text-gray-400 mt-1">
-                  Destination local metrics synced with local transit gateways.
-                </p>
+            {/* Right Column Stack */}
+            <div className="md:col-span-6 flex flex-col gap-6">
+              {/* Local Vibe Widget */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-cyan-400 animate-pulse" />
+                    Local Vibe Widget
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Destination local metrics synced with local transit gateways.
+                  </p>
+                </div>
+
+                {(() => {
+                  const vibe = getLocalVibeDetails();
+                  return (
+                    <div className="space-y-4">
+                      {/* Temperature */}
+                      <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:border-cyan-500/20 transition-colors">
+                        <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-lg">
+                          <CloudSun className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block">Current Weather</span>
+                          <span className="text-sm font-bold text-gray-200">{vibe.temp} • {vibe.condition}</span>
+                        </div>
+                      </div>
+
+                      {/* Timezone */}
+                      <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:border-indigo-500/20 transition-colors">
+                        <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block">Local Timezone</span>
+                          <span className="text-sm font-bold text-gray-200">{vibe.timezone}</span>
+                        </div>
+                      </div>
+
+                      {/* Rates */}
+                      <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:border-emerald-500/20 transition-colors">
+                        <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                          <DollarSign className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block">Exchange Rates</span>
+                          <span className="text-sm font-bold text-gray-200">{vibe.exchange}</span>
+                        </div>
+                      </div>
+
+                      {/* Advice block */}
+                      <div className="p-4 bg-indigo-500/5 border border-indigo-500/15 rounded-xl flex items-start gap-2.5">
+                        <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-indigo-300 leading-relaxed font-medium">
+                          {vibe.tip}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
-              {(() => {
-                const vibe = getLocalVibeDetails();
-                return (
-                  <div className="space-y-4">
-                    {/* Temperature */}
-                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:border-cyan-500/20 transition-colors">
-                      <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-lg">
-                        <CloudSun className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 uppercase font-bold block">Current Weather</span>
-                        <span className="text-sm font-bold text-gray-200">{vibe.temp} • {vibe.condition}</span>
-                      </div>
-                    </div>
+              {/* Local Safety & SOS Widget */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-rose-450 dark:text-rose-400 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-rose-500 animate-pulse" />
+                    Local Safety & SOS
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Emergency response lines and essential native survival phrases.
+                  </p>
+                </div>
 
-                    {/* Timezone */}
-                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:border-indigo-500/20 transition-colors">
-                      <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                        <Clock className="w-5 h-5" />
+                {(() => {
+                  const safety = getSafetyDetails();
+                  return (
+                    <div className="space-y-4">
+                      {/* Emergency contacts grid */}
+                      <div className="grid grid-cols-3 gap-2.5 text-center">
+                        <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                          <span className="text-[9px] text-gray-450 uppercase font-bold block mb-1">Police</span>
+                          <span className="text-sm font-black text-rose-400">{safety.police}</span>
+                        </div>
+                        <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                          <span className="text-[9px] text-gray-455 uppercase font-bold block mb-1">Medical</span>
+                          <span className="text-sm font-black text-rose-400">{safety.ambulance}</span>
+                        </div>
+                        <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                          <span className="text-[9px] text-gray-455 uppercase font-bold block mb-1">Fire</span>
+                          <span className="text-sm font-black text-rose-400">{safety.fire}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 uppercase font-bold block">Local Timezone</span>
-                        <span className="text-sm font-bold text-gray-200">{vibe.timezone}</span>
-                      </div>
-                    </div>
 
-                    {/* Rates */}
-                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:border-emerald-500/20 transition-colors">
-                      <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg">
-                        <DollarSign className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-gray-400 uppercase font-bold block">Exchange Rates</span>
-                        <span className="text-sm font-bold text-gray-200">{vibe.exchange}</span>
+                      {/* Survival Phrases list */}
+                      <div className="space-y-2.5 pt-2">
+                        <span className="text-[10px] text-gray-455 uppercase font-bold block">
+                          Survival Phrases ({safety.language})
+                        </span>
+                        <div className="divide-y divide-white/5 border-t border-b border-white/5">
+                          {safety.phrases.map((phrase, idx) => (
+                            <div key={idx} className="flex justify-between py-2 text-xs">
+                              <span className="font-bold text-gray-200">{phrase.local}</span>
+                              <span className="text-gray-450 italic">{phrase.english}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-
-                    {/* Advice block */}
-                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/15 rounded-xl flex items-start gap-2.5">
-                      <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-indigo-300 leading-relaxed font-medium">
-                        {vibe.tip}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
+              </div>
             </div>
           </motion.div>
         )}

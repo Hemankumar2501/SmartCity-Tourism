@@ -8,7 +8,7 @@ includes the versioned API routers, and defines base health check endpoints.
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1.endpoints import ai_planner, reviews, chat
+from app.api.v1.endpoints import ai_planner, reviews, chat, vision
 
 # Initialize FastAPI application with project metadata
 app = FastAPI(
@@ -47,6 +47,12 @@ app.include_router(
     chat.router,
     prefix=f"{settings.API_V1_STR}/chat",
     tags=["Chat Concierge"],
+)
+
+app.include_router(
+    vision.router,
+    prefix=f"{settings.API_V1_STR}/ai-planner",
+    tags=["AI Planner"],
 )
 
 

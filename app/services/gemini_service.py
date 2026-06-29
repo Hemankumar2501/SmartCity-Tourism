@@ -265,6 +265,34 @@ class GeminiService:
             logger.error(f"Error calling Gemini in chat interaction: {str(e)}")
             return f"I'm sorry, I encountered an issue accessing the central AI model: {str(e)}"
 
+    async def generate_vision_caption(self, image_bytes: bytes, mime_type: str) -> str:
+        """
+        Sends image binary data blocks directly to Gemini Vision model to extract a poetic travel caption.
+        """
+        if self.mock_mode:
+            logger.info("Generating mock travel photo caption.")
+            return "Wandering through breathtaking horizons, where every corner holds a new smart city adventure."
+
+        try:
+            model = genai.GenerativeModel(self.model_name)
+            
+            image_data = {
+                "mime_type": mime_type,
+                "data": image_bytes
+            }
+            
+            prompt = (
+                "Analyze this travel photo. Return a beautiful, poetic, 1-2 sentence travel caption "
+                "for a travel journal. Do not include markdown code block formatting, hashtags, or quotes in your response. "
+                "Just return the raw text."
+            )
+            
+            response = await model.generate_content_async([prompt, image_data])
+            return response.text.strip()
+        except Exception as e:
+            logger.error(f"Error calling Gemini Vision: {str(e)}")
+            return "Capturing a moment of wonder on our travel adventures, where history meets tomorrow."
+
     def _build_prompt(self, request: ItineraryRequest) -> str:
         """
         Constructs the generative prompt for the Gemini LLM.
