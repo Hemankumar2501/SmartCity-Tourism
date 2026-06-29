@@ -9,6 +9,8 @@ import html2canvas from "html2canvas";
 import dynamic from "next/dynamic";
 import { useAuth } from "./AuthContext";
 import { useReactToPrint } from "react-to-print";
+// @ts-ignore
+import html2pdf from "html2pdf.js";
 
 const MapComponent = dynamic(() => import("./MapComponent"), { ssr: false });
 
@@ -17,6 +19,8 @@ interface Activity {
   description: string;
   location: string;
   estimated_cost: number | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface DailyPlan {
@@ -111,13 +115,23 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
 
   const [mapCenter, setMapCenter] = useState<[number, number]>([25.2048, 55.2708]);
 
-  // Geocode active destination on change (OpenStreetMap Nominatim)
+  // Geocode active destination or extract first landmark coords
   useEffect(() => {
+    // 1. Try to find the first activity coordinate returned by the backend
+    for (const day of plan.itinerary) {
+      for (const act of day.activities) {
+        if (act.latitude && act.longitude) {
+          setMapCenter([act.latitude, act.longitude]);
+          return;
+        }
+      }
+    }
+
+    // 2. Fallback: geocode city name
     const geocodeCity = async () => {
       const city = plan.destinations[0];
       if (!city) return;
 
-      // Try local pre-mapped coordinates first
       const normalizedCity = city.toLowerCase().trim();
       for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
         if (normalizedCity.includes(key) || key.includes(normalizedCity)) {
@@ -126,7 +140,6 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
         }
       }
 
-      // Query Nominatim API for general coordinates
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`);
         if (res.ok) {
@@ -142,23 +155,29 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
       }
     };
     geocodeCity();
-  }, [plan.destinations]);
+  }, [plan.destinations, plan.itinerary]);
 
   const mapPins = useMemo(() => {
     const pins: any[] = [];
     
     plan.itinerary.forEach((day) => {
       day.activities.forEach((act, idx) => {
-        const hash = act.location.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const latOffset = (((hash + idx * 17) % 80) - 40) / 1000;
-        const lngOffset = (((hash * 13 + idx * 23) % 80) - 40) / 1000;
+        let coords: [number, number];
+        if (act.latitude && act.longitude) {
+          coords = [act.latitude, act.longitude];
+        } else {
+          const hash = act.location.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const latOffset = (((hash + idx * 17) % 80) - 40) / 1000;
+          const lngOffset = (((hash * 13 + idx * 23) % 80) - 40) / 1000;
+          coords = [mapCenter[0] + latOffset, mapCenter[1] + lngOffset];
+        }
 
         pins.push({
           dayNumber: day.day_number,
           timeOfDay: act.time_of_day,
           location: act.location,
           description: act.description,
-          coordinates: [mapCenter[0] + latOffset, mapCenter[1] + lngOffset]
+          coordinates: coords
         });
       });
     });
@@ -172,7 +191,19 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   });
 
   const generatePDF = () => {
-    handlePrint();
+    const element = document.getElementById("itinerary-container-to-print");
+    if (!element) return;
+
+    const opt = {
+      margin: 10,
+      filename: `Itinerary-${plan.destinations.join("-")}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#070A13" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    };
+
+    // @ts-ignore
+    html2pdf().from(element).set(opt).save();
   };
 
   // Compute budget breakdown for the chart

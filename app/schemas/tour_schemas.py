@@ -19,6 +19,8 @@ class Activity(BaseModel):
     description: str = Field(..., description="Details of the planned activity")
     location: str = Field(..., description="Location/venue name of the activity")
     estimated_cost: Optional[float] = Field(None, description="Estimated cost for this activity")
+    latitude: Optional[float] = Field(None, description="Latitude coordinate of the landmark")
+    longitude: Optional[float] = Field(None, description="Longitude coordinate of the landmark")
 
 
 class DailyPlan(BaseModel):

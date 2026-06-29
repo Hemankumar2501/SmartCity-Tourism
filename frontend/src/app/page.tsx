@@ -26,6 +26,8 @@ interface ActivityItem {
   description: string;
   location: string;
   estimated_cost: number | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface DailyPlan {

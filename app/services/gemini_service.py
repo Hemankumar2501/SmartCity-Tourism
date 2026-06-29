@@ -72,9 +72,17 @@ ITINERARY_RESPONSE_SCHEMA = {
                                 "estimated_cost": {
                                     "type": "number",
                                     "description": "Estimated cost for this activity"
+                                },
+                                "latitude": {
+                                    "type": "number",
+                                    "description": "Latitude coordinate of the location"
+                                },
+                                "longitude": {
+                                    "type": "number",
+                                    "description": "Longitude coordinate of the location"
                                 }
                             },
-                            "required": ["time_of_day", "description", "location"]
+                            "required": ["time_of_day", "description", "location", "latitude", "longitude"]
                         }
                     }
                 },
@@ -228,7 +236,9 @@ You must return a JSON object that strictly adheres to the following structure:
           "time_of_day": "Morning",
           "description": "Activity description",
           "location": "Location name",
-          "estimated_cost": 150.0
+          "estimated_cost": 150.0,
+          "latitude": 25.2048,
+          "longitude": 55.2708
         }}
       ]
     }}
@@ -244,6 +254,7 @@ You must return a JSON object that strictly adheres to the following structure:
   "recommendations": ["Recommendation tip 1", "Recommendation tip 2"]
 }}
 
+You MUST perform geo-coding lookup for each activity's location/landmark and provide accurate "latitude" and "longitude" coordinates.
 Make sure to provide rich, engaging descriptions of the activities leveraging smart-city conveniences (autonomous shuttles, IoT tour guides, smart parks).
 Return ONLY the raw JSON document. Do not wrap in markdown blocks.
 """
@@ -262,10 +273,24 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
         """
         estimated_cost = self._calculate_fallback_cost(request)
         
+        city_coords = {
+            "dubai": [25.2048, 55.2708],
+            "abu dhabi": [24.4539, 54.3773],
+            "chennai": [13.0827, 80.2707],
+            "madurai": [9.9252, 78.1198],
+            "singapore": [1.3521, 103.8198],
+            "kuala lumpur": [3.1390, 101.6869],
+            "tokyo": [35.6762, 139.6503],
+            "bangkok": [13.7563, 100.5018]
+        }
+
         # Build structured day-by-day plans
         days: List[DailyPlan] = []
         for d in range(1, request.duration_days + 1):
             dest = request.destinations[(d - 1) % len(request.destinations)]
+            dest_lower = dest.lower().strip()
+            base_coords = city_coords.get(dest_lower, [25.2048, 55.2708])
+
             days.append(
                 DailyPlan(
                     day_number=d,
@@ -275,19 +300,25 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
                             time_of_day="Morning",
                             description="Guided tour using smart-city augmented reality glasses.",
                             location=f"{dest} Smart Culture Center",
-                            estimated_cost=estimated_cost * 0.1 / request.duration_days
+                            estimated_cost=round(estimated_cost * 0.1 / request.duration_days, 2),
+                            latitude=base_coords[0] + 0.005,
+                            longitude=base_coords[1] - 0.005
                         ),
                         Activity(
                             time_of_day="Afternoon",
                             description=f"Culinary exploration catering to {', '.join(request.preferences) if request.preferences else 'local'} tastes.",
                             location=f"{dest} Downtown Hyper-Local Marketplace",
-                            estimated_cost=estimated_cost * 0.15 / request.duration_days
+                            estimated_cost=round(estimated_cost * 0.15 / request.duration_days, 2),
+                            latitude=base_coords[0] - 0.005,
+                            longitude=base_coords[1] + 0.005
                         ),
                         Activity(
                             time_of_day="Evening",
                             description="Drone light show and ecological botanical garden walk.",
                             location=f"{dest} Eco-Dome Smart Park",
-                            estimated_cost=0.0
+                            estimated_cost=0.0,
+                            latitude=base_coords[0] + 0.008,
+                            longitude=base_coords[1] + 0.008
                         )
                     ]
                 )
