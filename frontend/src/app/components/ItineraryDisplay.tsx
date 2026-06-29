@@ -173,17 +173,17 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   });
 
   const generatePDF = async () => {
-    const element = document.getElementById("itinerary-container-to-print");
+    const element = document.getElementById("hidden-print-section");
     if (!element) return;
 
     // @ts-ignore
     const html2pdf = (await import("html2pdf.js")).default;
 
     const opt = {
-      margin: 10,
+      margin: 15,
       filename: `Itinerary-${plan.destinations.join("-")}.pdf`,
       image: { type: "jpeg" as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#070A13" },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
       jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
     };
 
@@ -773,6 +773,130 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hidden Print Section */}
+      <div
+        id="hidden-print-section"
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: "0",
+          width: "794px",
+          padding: "40px",
+          background: "#ffffff",
+          color: "#0f172a",
+          fontFamily: "sans-serif",
+        }}
+        className="space-y-8"
+      >
+        <div className="border-b-2 border-slate-200 pb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">WanderWise AI Itinerary</h1>
+            <p className="text-sm text-slate-500 mt-1">Smart City custom travel planner details</p>
+          </div>
+          <div className="text-right">
+            <div className="text-lg font-black text-indigo-600">${plan.total_estimated_cost.toLocaleString()}</div>
+            <div className="text-xs text-slate-400">Total Budget ({budget.currency})</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-xs">
+          <div>
+            <span className="font-bold text-slate-500 uppercase block">Destinations</span>
+            <span className="text-slate-800 text-sm font-semibold">{plan.destinations.join(" & ")}</span>
+          </div>
+          <div>
+            <span className="font-bold text-slate-500 uppercase block">Duration</span>
+            <span className="text-slate-800 text-sm font-semibold">{plan.duration_days} Days</span>
+          </div>
+        </div>
+
+        {/* Day-by-Day sequence */}
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2">Schedule</h2>
+          {plan.itinerary.map((day) => (
+            <div key={day.day_number} className="space-y-3">
+              <h3 className="text-sm font-bold text-indigo-600">
+                Day {day.day_number}: {day.title}
+              </h3>
+              <div className="space-y-3.5 pl-4 border-l-2 border-slate-200">
+                {day.activities.map((act, idx) => (
+                  <div key={idx} className="text-xs">
+                    <div className="flex justify-between font-semibold text-slate-700">
+                      <span>{act.time_of_day} - {act.location}</span>
+                      {act.estimated_cost !== null && <span>${act.estimated_cost}</span>}
+                    </div>
+                    <p className="text-slate-500 mt-1">{act.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Budget breakdown grid */}
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2">Budget Breakdown</h2>
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-2">Expense Category</th>
+                <th className="py-2 text-right">Estimated Cost ({budget.currency})</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td className="py-2">Flights</td>
+                <td className="py-2 text-right">${budget.flights.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="py-2">Hotel Accommodation</td>
+                <td className="py-2 text-right">${budget.hotel.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="py-2">Food / Dining</td>
+                <td className="py-2 text-right">${budget.food.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="py-2">Local Transport</td>
+                <td className="py-2 text-right">${budget.transport.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="py-2">Activities</td>
+                <td className="py-2 text-right">${budget.activities.toLocaleString()}</td>
+              </tr>
+              <tr className="font-bold text-slate-900 border-t-2 border-slate-200">
+                <td className="py-2">Total Estimated Cost</td>
+                <td className="py-2 text-right">${plan.total_estimated_cost.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Packing items */}
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2">Recommended Packing List</h2>
+          <ul className="list-disc list-inside text-xs text-slate-600 space-y-1">
+            {getPackingItems().map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Recommendations */}
+        <div className="space-y-2 pb-6">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2">Local Recommendations</h2>
+          <ul className="list-disc list-inside text-xs text-slate-600 space-y-1">
+            {plan.recommendations.map((tip, idx) => (
+              <li key={idx}>{tip}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border-t border-slate-200 pt-4 text-center text-[10px] text-slate-400">
+          Generated via WanderWise AI Smart Travel Assistant • Powered by {plan.model_version}
+        </div>
+      </div>
     </div>
   );
 }

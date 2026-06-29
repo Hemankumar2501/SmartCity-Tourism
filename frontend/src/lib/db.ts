@@ -1,30 +1,55 @@
 import { SavedItinerary } from "../app/components/AuthContext";
+import { supabase } from "./supabaseClient";
 
 // Key prefixes for localStorage storage fallback
 const LOCAL_STORAGE_TRIP_PREFIX = "wanderwise_trip_";
 const LOCAL_STORAGE_USER_INDEX_PREFIX = "wanderwise_user_trips_";
 
-/**
- * TripService - Database abstraction layer for managing itineraries.
- * 
- * Production Integration Note:
- * To migrate from localStorage to a production database (e.g., Supabase, Firebase, or Prisma):
- * 1. Replace the localStorage read/write logic inside these methods with your ORM / API calls.
- * 2. Example Supabase client integration:
- *    import { supabase } from './supabaseClient';
- *    ...
- *    const { data, error } = await supabase.from('trips').insert([trip]);
- */
+const isSupabaseConfigured = () => {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
+  );
+};
+
 export const TripService = {
   /**
-   * Saves or updates a travel itinerary.
-   * If no ID exists, a cryptographically secure UUID is assigned automatically.
+   * Helper to write to local storage index for local caching.
    */
-  async saveTrip(trip: Omit<SavedItinerary, "id" | "savedAt"> & { id?: string; email?: string }): Promise<SavedItinerary> {
-    const tripId = trip.id || (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" 
-      ? crypto.randomUUID() 
-      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+  cacheLocally(trip: SavedItinerary, email?: string) {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_TRIP_PREFIX}${trip.id}`, JSON.stringify(trip));
+
+      const emailKey = email || "anonymous";
+      const userIndexKey = `${LOCAL_STORAGE_USER_INDEX_PREFIX}${emailKey}`;
+      const existingIndex = localStorage.getItem(userIndexKey);
       
+      let ids: string[] = existingIndex ? JSON.parse(existingIndex) : [];
+      if (!ids.includes(trip.id)) {
+        ids.unshift(trip.id);
+        localStorage.setItem(userIndexKey, JSON.stringify(ids));
+      }
+    } catch (err) {
+      console.error("[TripService] Local caching failed:", err);
+    }
+  },
+
+  /**
+   * Saves or updates a travel itinerary.
+   * Syncs with Supabase if credentials exist, falling back to local storage on failure or lack of configuration.
+   */
+  async saveTrip(
+    trip: Omit<SavedItinerary, "id" | "savedAt"> & { id?: string; email?: string }
+  ): Promise<SavedItinerary> {
+    const tripId =
+      trip.id ||
+      (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(2, 15) +
+          Math.random().toString(36).substring(2, 15));
+
     const savedAt = new Date().toISOString();
     const savedTrip: SavedItinerary = {
       ...trip,
@@ -32,20 +57,38 @@ export const TripService = {
       savedAt,
     };
 
-    if (typeof window !== "undefined") {
-      // Fallback: Save to client-side localStorage
-      localStorage.setItem(`${LOCAL_STORAGE_TRIP_PREFIX}${tripId}`, JSON.stringify(savedTrip));
+    if (isSupabaseConfigured()) {
+      try {
+        console.log(`[Supabase] Upserting trip ID ${tripId} for user ${trip.email || "anonymous"}`);
+        const { error } = await supabase.from("trips").upsert({
+          id: tripId,
+          saved_at: savedAt,
+          destinations: trip.destinations,
+          duration_days: trip.duration_days,
+          total_estimated_cost: trip.total_estimated_cost,
+          itinerary: trip.itinerary,
+          recommendations: trip.recommendations,
+          budget_breakdown: trip.budget_breakdown,
+          packing_list: trip.packing_list,
+          email: trip.email || "anonymous",
+          model_version: trip.model_version,
+        });
 
-      // Index the trip ID under the user's email or 'anonymous'
-      const emailKey = trip.email || "anonymous";
-      const userIndexKey = `${LOCAL_STORAGE_USER_INDEX_PREFIX}${emailKey}`;
-      const existingIndex = localStorage.getItem(userIndexKey);
-      
-      let ids: string[] = existingIndex ? JSON.parse(existingIndex) : [];
-      if (!ids.includes(tripId)) {
-        ids.unshift(tripId); // Put newest trip first
-        localStorage.setItem(userIndexKey, JSON.stringify(ids));
+        if (error) {
+          console.warn("[Supabase] Database upsert returned error, falling back to localStorage:", error.message);
+        } else {
+          console.log("[Supabase] Saved trip successfully.");
+          this.cacheLocally(savedTrip, trip.email);
+          return savedTrip;
+        }
+      } catch (err: any) {
+        console.error("[Supabase] Exception encountered during save operation, applying localStorage fallback:", err.message || err);
       }
+    }
+
+    // Local Storage Fallback
+    if (typeof window !== "undefined") {
+      this.cacheLocally(savedTrip, trip.email);
     } else {
       console.warn("[TripService] saveTrip: Running on server. Data was not persisted to localStorage.");
     }
@@ -55,19 +98,58 @@ export const TripService = {
 
   /**
    * Retrieves all saved travel plans for a specific user email.
-   * Includes legacy migration of old-format user trips.
+   * Attempts Supabase fetching and falls back to client localStorage index list.
    */
   async getUserTrips(email: string): Promise<SavedItinerary[]> {
+    const emailKey = email || "anonymous";
+
+    if (isSupabaseConfigured()) {
+      try {
+        console.log(`[Supabase] Fetching trips index for email: ${emailKey}`);
+        const { data, error } = await supabase
+          .from("trips")
+          .select("*")
+          .eq("email", emailKey)
+          .order("saved_at", { ascending: false });
+
+        if (error) {
+          console.warn("[Supabase] Failed to fetch trips, reverting to local caching list:", error.message);
+        } else if (data) {
+          // Normalize DB response to local model
+          const normalized: SavedItinerary[] = data.map((d: any) => ({
+            id: d.id,
+            savedAt: d.saved_at || d.savedAt,
+            destinations: d.destinations,
+            duration_days: d.duration_days,
+            total_estimated_cost: d.total_estimated_cost,
+            itinerary: d.itinerary,
+            recommendations: d.recommendations,
+            budget_breakdown: d.budget_breakdown,
+            packing_list: d.packing_list,
+            model_version: d.model_version,
+          }));
+
+          // Synchronize local cache with latest DB data
+          if (typeof window !== "undefined") {
+            normalized.forEach((trip) => this.cacheLocally(trip, emailKey));
+          }
+          return normalized;
+        }
+      } catch (err: any) {
+        console.error("[Supabase] getUserTrips failed, using local caching:", err.message || err);
+      }
+    }
+
+    // Local Storage fallback & migration support
     if (typeof window === "undefined") {
       return [];
     }
 
-    const emailKey = email || "anonymous";
     const userIndexKey = `${LOCAL_STORAGE_USER_INDEX_PREFIX}${emailKey}`;
     const existingIndex = localStorage.getItem(userIndexKey);
 
     if (!existingIndex) {
-      // Check and migrate from legacy key format: `saved_itineraries_${email}`
+      // Check legacy format
       const legacyKey = `saved_itineraries_${email}`;
       const legacyData = localStorage.getItem(legacyKey);
       if (legacyData) {
@@ -102,7 +184,6 @@ export const TripService = {
         }
       }
 
-      // Sort by save date descending
       return trips.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
     } catch (err) {
       console.error("[TripService] Error loading user trips:", err);
@@ -114,6 +195,37 @@ export const TripService = {
    * Fetches a single itinerary by its unique UUID.
    */
   async getTripById(id: string): Promise<SavedItinerary | null> {
+    if (isSupabaseConfigured()) {
+      try {
+        console.log(`[Supabase] Fetching trip ID: ${id}`);
+        const { data, error } = await supabase
+          .from("trips")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) {
+          console.warn(`[Supabase] Fetching trip by ID failed, falling back to local storage:`, error.message);
+        } else if (data) {
+          return {
+            id: data.id,
+            savedAt: data.saved_at || data.savedAt,
+            destinations: data.destinations,
+            duration_days: data.duration_days,
+            total_estimated_cost: data.total_estimated_cost,
+            itinerary: data.itinerary,
+            recommendations: data.recommendations,
+            budget_breakdown: data.budget_breakdown,
+            packing_list: data.packing_list,
+            model_version: data.model_version,
+          };
+        }
+      } catch (err: any) {
+        console.error(`[Supabase] getTripById exception for trip ${id}:`, err.message || err);
+      }
+    }
+
+    // Local Storage fallback
     if (typeof window === "undefined") {
       return null;
     }
@@ -133,15 +245,35 @@ export const TripService = {
    * Deletes an itinerary by ID and removes it from the user's index list.
    */
   async deleteTrip(id: string, email: string): Promise<boolean> {
+    const emailKey = email || "anonymous";
+
+    if (isSupabaseConfigured()) {
+      try {
+        console.log(`[Supabase] Deleting trip ID ${id} for email ${emailKey}`);
+        const { error } = await supabase
+          .from("trips")
+          .delete()
+          .eq("id", id)
+          .eq("email", emailKey);
+
+        if (error) {
+          console.warn("[Supabase] Failed to delete from cloud database, applying local cache removal:", error.message);
+        } else {
+          console.log("[Supabase] Deleted from cloud database successfully.");
+        }
+      } catch (err: any) {
+        console.error("[Supabase] deleteTrip exception, applying local cache removal:", err.message || err);
+      }
+    }
+
     if (typeof window === "undefined") {
       return false;
     }
 
-    // Remove the trip data
+    // Remove local cache
     localStorage.removeItem(`${LOCAL_STORAGE_TRIP_PREFIX}${id}`);
 
-    // Update the index list
-    const emailKey = email || "anonymous";
+    // Update index list
     const userIndexKey = `${LOCAL_STORAGE_USER_INDEX_PREFIX}${emailKey}`;
     const existingIndex = localStorage.getItem(userIndexKey);
 
@@ -156,5 +288,5 @@ export const TripService = {
     }
 
     return true;
-  }
+  },
 };
