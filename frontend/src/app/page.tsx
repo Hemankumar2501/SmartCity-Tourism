@@ -157,9 +157,26 @@ export default function page() {
   };
 
   return (
-    <div className="flex h-screen bg-[#070A13] text-gray-100 font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#070A13] text-gray-100 font-sans overflow-hidden relative">
+      {/* Immersive Video Background with Dark Overlay */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover scale-105 opacity-25 filter blur-[1px]"
+        >
+          <source
+            src="https://assets.mixkit.co/videos/preview/mixkit-downtown-tokyo-intersection-at-night-42287-large.mp4"
+            type="video/mp4"
+          />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/90 to-slate-950" />
+      </div>
+
       {/* Background decoration grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35 pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
 
       {/* Sidebar Navigation */}
       <aside className="w-80 bg-white/5 border-r border-white/10 backdrop-blur-xl flex flex-col z-10 shrink-0">
