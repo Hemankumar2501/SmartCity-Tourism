@@ -7,6 +7,7 @@ import { MapPin, DollarSign, Calendar, Clock, AlertTriangle, Download, Map } fro
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import dynamic from "next/dynamic";
+import { useAuth } from "./AuthContext";
 
 const MapComponent = dynamic(() => import("./MapComponent"), { ssr: false });
 
@@ -79,6 +80,28 @@ const getCoordinatesForLocation = (locationName: string, city: string, index: nu
 export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   const [mounted, setMounted] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(1);
+  const { user, saveItinerary, setShowLoginModal } = useAuth();
+  const [isSaved, setIsSaved] = useState(false);
+
+  // Reset isSaved state when plan changes
+  useEffect(() => {
+    setIsSaved(false);
+  }, [plan]);
+
+  const handleSave = () => {
+    const success = saveItinerary({
+      destinations: plan.destinations,
+      duration_days: plan.duration_days,
+      total_estimated_cost: plan.total_estimated_cost,
+      itinerary: plan.itinerary,
+      recommendations: plan.recommendations,
+      budget_estimate: plan.budget_estimate,
+      model_version: plan.model_version,
+    });
+    if (success) {
+      setIsSaved(true);
+    }
+  };
 
   // Set mounted to true on client-side
   useEffect(() => {
@@ -202,6 +225,29 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          {user ? (
+            <button
+              onClick={handleSave}
+              disabled={isSaved}
+              data-html2canvas-ignore="true"
+              className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer ${
+                isSaved
+                  ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 cursor-not-allowed"
+                  : "bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-[0_4px_15px_rgba(6,182,212,0.2)]"
+              }`}
+            >
+              {isSaved ? "Saved to Dashboard" : "Save Itinerary"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              data-html2canvas-ignore="true"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white rounded-xl text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              Sign In to Save
+            </button>
+          )}
+
           <button
             onClick={downloadPDF}
             data-html2canvas-ignore="true"

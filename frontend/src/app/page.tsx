@@ -17,6 +17,8 @@ import {
 import ChatWindow from "./components/ChatWindow";
 import ItineraryDisplay from "./components/ItineraryDisplay";
 import ReviewSentiment from "./components/ReviewSentiment";
+import { useAuth } from "./components/AuthContext";
+import Link from "next/link";
 
 // Types corresponding to FastAPI response
 interface ActivityItem {
@@ -62,6 +64,7 @@ interface SentimentResponse {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function page() {
+  const { user, logout, setShowLoginModal } = useAuth();
   const [activeTab, setActiveTab] = useState<"dashboard" | "planner" | "reviews">("dashboard");
 
   // AI Planner States
@@ -210,15 +213,48 @@ export default function page() {
             <FileText className="w-5 h-5" />
             <span>NLP Review Tagging</span>
           </button>
+
+          <Link
+            href="/dashboard"
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 text-gray-400 hover:text-cyan-300 hover:bg-white/5 border border-transparent"
+          >
+            <LayoutDashboard className="w-5 h-5 text-indigo-400" />
+            <span>My Travel Dashboard</span>
+          </Link>
         </nav>
 
-        {/* Footer info */}
-        <div className="p-6 border-t border-white/10 space-y-4">
-          <div className="flex items-center gap-3 text-xs bg-white/5 p-3 rounded-xl border border-white/5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+        {/* User Auth Footer */}
+        <div className="p-6 border-t border-white/10 space-y-3">
+          {user ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+                <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/20 shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-gray-200 block truncate">{user.name}</span>
+                  <span className="text-[10px] text-gray-400 truncate block">{user.email}</span>
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/30 text-rose-400 rounded-xl text-xs font-semibold transition-all duration-300 cursor-pointer text-center block"
+              >
+                Log Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_4px_15px_rgba(6,182,212,0.15)] transition-all duration-300 cursor-pointer"
+            >
+              Sign In with Google
+            </button>
+          )}
+
+          <div className="flex items-center gap-3 text-[10px] bg-white/5 p-2.5 rounded-lg border border-white/5 text-gray-400">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             <div>
-              <span className="text-gray-400 block font-semibold">Security Level</span>
-              <span className="text-gray-200">Protocol Secure</span>
+              <span className="font-semibold block text-gray-300">Protocol Secure</span>
+              <span>Encrypted Session</span>
             </div>
           </div>
         </div>
