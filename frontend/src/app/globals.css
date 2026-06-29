@@ -24,3 +24,74 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  
+  #itinerary-container-to-print {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 15mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+  }
+
+  #itinerary-container-to-print .lg\\:col-span-12,
+  #itinerary-container-to-print .lg\\:col-span-7,
+  #itinerary-container-to-print .lg\\:col-span-5 {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    float: none !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin-bottom: 8mm !important;
+  }
+
+  [data-html2canvas-ignore="true"],
+  .no-print,
+  button,
+  .leaflet-container,
+  .recharts-responsive-container {
+    display: none !important;
+  }
+
+  h2 {
+    font-size: 26pt !important;
+    color: #0f172a !important;
+    margin-bottom: 4mm !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    padding-bottom: 2mm !important;
+  }
+
+  h3 {
+    font-size: 16pt !important;
+    color: #1e3a8a !important;
+    margin-top: 6mm !important;
+    margin-bottom: 3mm !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding-bottom: 1mm !important;
+  }
+
+  .print-day-card {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 4mm !important;
+    margin-bottom: 4mm !important;
+    page-break-inside: avoid !important;
+    background: #f8fafc !important;
+  }
+
+  p, li, span {
+    color: #334155 !important;
+    font-size: 10.5pt !important;
+  }
+}
+

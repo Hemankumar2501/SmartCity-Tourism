@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 
 // Import Leaflet CSS stylesheet
@@ -16,6 +16,14 @@ if (typeof window !== "undefined") {
     iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
     shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
   });
+}
+
+function ChangeView({ center }: { center: [number, number] }) {
+  const map = useMap();
+  React.useEffect(() => {
+    map.setView(center, 12);
+  }, [center, map]);
+  return null;
 }
 
 interface MapPin {
@@ -40,6 +48,7 @@ export default function MapComponent({ pins, center }: MapComponentProps) {
         scrollWheelZoom={false}
         className="w-full h-full z-0"
       >
+        <ChangeView center={center} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

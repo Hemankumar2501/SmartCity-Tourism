@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { MapPin, DollarSign, Calendar, Clock, AlertTriangle, Download, Map } from "lucide-react";
@@ -8,6 +8,7 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import dynamic from "next/dynamic";
 import { useAuth } from "./AuthContext";
+import { useReactToPrint } from "react-to-print";
 
 const MapComponent = dynamic(() => import("./MapComponent"), { ssr: false });
 
@@ -108,70 +109,70 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
     setMounted(true);
   }, []);
 
+  const [mapCenter, setMapCenter] = useState<[number, number]>([25.2048, 55.2708]);
+
+  // Geocode active destination on change (OpenStreetMap Nominatim)
+  useEffect(() => {
+    const geocodeCity = async () => {
+      const city = plan.destinations[0];
+      if (!city) return;
+
+      // Try local pre-mapped coordinates first
+      const normalizedCity = city.toLowerCase().trim();
+      for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
+        if (normalizedCity.includes(key) || key.includes(normalizedCity)) {
+          setMapCenter(coords);
+          return;
+        }
+      }
+
+      // Query Nominatim API for general coordinates
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data[0]) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            setMapCenter([lat, lon]);
+          }
+        }
+      } catch (err) {
+        console.error("Geocoding failed, falling back to default coordinates", err);
+      }
+    };
+    geocodeCity();
+  }, [plan.destinations]);
+
   const mapPins = useMemo(() => {
     const pins: any[] = [];
-    const mainCity = plan.destinations[0] || "Dubai";
     
     plan.itinerary.forEach((day) => {
       day.activities.forEach((act, idx) => {
+        const hash = act.location.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const latOffset = (((hash + idx * 17) % 80) - 40) / 1000;
+        const lngOffset = (((hash * 13 + idx * 23) % 80) - 40) / 1000;
+
         pins.push({
           dayNumber: day.day_number,
           timeOfDay: act.time_of_day,
           location: act.location,
           description: act.description,
-          coordinates: getCoordinatesForLocation(act.location, act.location.includes(",") ? act.location.split(",")[1] : mainCity, idx + day.day_number)
+          coordinates: [mapCenter[0] + latOffset, mapCenter[1] + lngOffset]
         });
       });
     });
     return pins;
-  }, [plan]);
+  }, [plan, mapCenter]);
 
-  const mapCenter = useMemo<[number, number]>(() => {
-    if (mapPins.length > 0) {
-      return mapPins[0].coordinates;
-    }
-    const mainCity = plan.destinations[0] || "Dubai";
-    const normalizedCity = mainCity.toLowerCase().trim();
-    for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
-      if (normalizedCity.includes(key) || key.includes(normalizedCity)) {
-        return coords;
-      }
-    }
-    return [25.2048, 55.2708];
-  }, [mapPins, plan.destinations]);
+  const componentRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: componentRef,
+    documentTitle: `Itinerary-${plan.destinations.join("-")}`,
+  });
 
-  const downloadPDF = async () => {
-    const element = document.getElementById("itinerary-container-to-export");
-    if (!element) return;
-    
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#070A13",
-        logging: false,
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-      pdf.save(`Itinerary-${plan.destinations.join("-")}.pdf`);
-    } catch (error) {
-      console.error("PDF generation failed:", error);
-    }
+  const generatePDF = () => {
+    handlePrint();
   };
 
   // Compute budget breakdown for the chart
@@ -204,7 +205,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
   const chartData = getBudgetBreakdown();
 
   return (
-    <div id="itinerary-container-to-export" className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full max-w-6xl mx-auto p-4 rounded-3xl bg-[#070A13]">
+    <div id="itinerary-container-to-print" ref={componentRef} className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full max-w-6xl mx-auto p-4 rounded-3xl bg-[#070A13]">
       {/* Overview Card */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -249,7 +250,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
           )}
 
           <button
-            onClick={downloadPDF}
+            onClick={generatePDF}
             data-html2canvas-ignore="true"
             className="flex items-center justify-center gap-2 px-5 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-sm font-bold shadow-[0_4px_15px_rgba(16,185,129,0.2)] transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
           >
