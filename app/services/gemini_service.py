@@ -11,7 +11,7 @@ from typing import List, Optional
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from app.core.config import settings
-from app.schemas.tour_schemas import ItineraryRequest, ItineraryResponse, DailyPlan, Activity
+from app.schemas.tour_schemas import ItineraryRequest, ItineraryResponse, DailyPlan, Activity, BudgetBreakdown
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,33 @@ ITINERARY_RESPONSE_SCHEMA = {
                 },
                 "required": ["day_number", "title", "activities"]
             }
+        },
+        "budget_estimate": {
+            "type": "object",
+            "description": "Detailed budget estimation breakdown for the trip",
+            "properties": {
+                "flights": {
+                    "type": "number",
+                    "description": "Estimated flight/long-distance travel cost in USD"
+                },
+                "accommodation": {
+                    "type": "number",
+                    "description": "Estimated hotel/accommodation cost in USD"
+                },
+                "food": {
+                    "type": "number",
+                    "description": "Estimated food/dining cost in USD"
+                },
+                "local_transport": {
+                    "type": "number",
+                    "description": "Estimated local transport/transit cost in USD"
+                },
+                "currency": {
+                    "type": "string",
+                    "description": "Currency of the estimate, e.g. USD"
+                }
+            },
+            "required": ["flights", "accommodation", "food", "local_transport", "currency"]
         }
     },
     "required": [
@@ -87,7 +114,8 @@ ITINERARY_RESPONSE_SCHEMA = {
         "duration_days",
         "total_estimated_cost",
         "recommendations",
-        "itinerary"
+        "itinerary",
+        "budget_estimate"
     ]
 }
 
@@ -206,6 +234,13 @@ You must return a JSON object that strictly adheres to the following structure:
     }}
   ],
   "total_estimated_cost": 1250.00,
+  "budget_estimate": {{
+    "flights": 400.00,
+    "accommodation": 450.00,
+    "food": 250.00,
+    "local_transport": 150.00,
+    "currency": "USD"
+  }},
   "recommendations": ["Recommendation tip 1", "Recommendation tip 2"]
 }}
 
@@ -269,11 +304,20 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
         else:
             recommendations.append("Notice: Running in Mock Mode because GEMINI_API_KEY is not configured.")
 
+        budget_est = BudgetBreakdown(
+            flights=round(estimated_cost * 0.3, 2),
+            accommodation=round(estimated_cost * 0.4, 2),
+            food=round(estimated_cost * 0.2, 2),
+            local_transport=round(estimated_cost * 0.1, 2),
+            currency="USD"
+        )
+
         return ItineraryResponse(
             destinations=request.destinations,
             duration_days=request.duration_days,
             itinerary=days,
             total_estimated_cost=estimated_cost,
             recommendations=recommendations,
+            budget_estimate=budget_est,
             model_version=f"{self.model_name} (mock/fallback)"
         )

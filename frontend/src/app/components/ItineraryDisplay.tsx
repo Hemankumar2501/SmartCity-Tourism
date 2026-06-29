@@ -18,12 +18,21 @@ interface DailyPlan {
   activities: Activity[];
 }
 
+interface BudgetEstimate {
+  flights: number;
+  accommodation: number;
+  food: number;
+  local_transport: number;
+  currency: string;
+}
+
 interface ItineraryResponse {
   destinations: string[];
   duration_days: number;
   itinerary: DailyPlan[];
   total_estimated_cost: number;
   recommendations: string[];
+  budget_estimate?: BudgetEstimate;
   model_version: string;
 }
 
@@ -183,6 +192,52 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
               </div>
             </motion.div>
           ))}
+
+        {/* Budget Estimate Card */}
+        {plan.budget_estimate && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-4"
+          >
+            <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-cyan-400" />
+              Comprehensive Budget Estimator
+            </h3>
+            <p className="text-xs text-gray-400">
+              Estimated itemized expenses for {plan.destinations.join(" & ")} over {plan.duration_days} days.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-1 hover:border-cyan-500/20 transition-all duration-300">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Flights / Transit</span>
+                <span className="text-lg font-bold text-gray-200">${plan.budget_estimate.flights.toLocaleString()}</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-1 hover:border-cyan-500/20 transition-all duration-300">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Accommodation</span>
+                <span className="text-lg font-bold text-gray-200">${plan.budget_estimate.accommodation.toLocaleString()}</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-1 hover:border-cyan-500/20 transition-all duration-300">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Food & Dining</span>
+                <span className="text-lg font-bold text-gray-200">${plan.budget_estimate.food.toLocaleString()}</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-1 hover:border-cyan-500/20 transition-all duration-300">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Local Transport</span>
+                <span className="text-lg font-bold text-gray-200">${plan.budget_estimate.local_transport.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl p-4 mt-4">
+              <span className="text-xs font-semibold text-gray-300">Total Sum of Estimated Itemized Expenses</span>
+              <span className="text-xl font-extrabold text-cyan-400">
+                ${(
+                  plan.budget_estimate.flights +
+                  plan.budget_estimate.accommodation +
+                  plan.budget_estimate.food +
+                  plan.budget_estimate.local_transport
+                ).toLocaleString()} {plan.budget_estimate.currency}
+              </span>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Sidebar: Budget Breakdown & Recommendations */}

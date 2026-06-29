@@ -50,6 +50,15 @@ class ItineraryRequest(BaseModel):
     )
 
 
+class BudgetBreakdown(BaseModel):
+    """Detailed budget breakdown estimation."""
+    flights: float = Field(..., description="Estimated flight cost in USD")
+    accommodation: float = Field(..., description="Estimated hotel/accommodation cost in USD")
+    food: float = Field(..., description="Estimated food/dining cost in USD")
+    local_transport: float = Field(..., description="Estimated local transport/transit cost in USD")
+    currency: str = Field("USD", description="Currency of the estimate, e.g., 'USD'")
+
+
 class ItineraryResponse(BaseModel):
     """Schema for the generated travel itinerary response."""
     destinations: List[str] = Field(..., description="Destinations covered")
@@ -57,7 +66,9 @@ class ItineraryResponse(BaseModel):
     itinerary: List[DailyPlan] = Field(..., description="Day-by-day plan details")
     total_estimated_cost: float = Field(..., description="Estimated total trip cost")
     recommendations: List[str] = Field(..., description="General mega-tourism tips and local guidelines")
+    budget_estimate: Optional[BudgetBreakdown] = Field(None, description="Detailed budget estimation breakdown")
     model_version: str = Field(..., description="The AI model version used for generation")
+
 
 
 # ==============================================================================

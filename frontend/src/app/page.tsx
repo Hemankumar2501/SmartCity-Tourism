@@ -32,12 +32,21 @@ interface DailyPlan {
   activities: ActivityItem[];
 }
 
+interface BudgetEstimate {
+  flights: number;
+  accommodation: number;
+  food: number;
+  local_transport: number;
+  currency: string;
+}
+
 interface ItineraryResponse {
   destinations: string[];
   duration_days: number;
   itinerary: DailyPlan[];
   total_estimated_cost: number;
   recommendations: string[];
+  budget_estimate?: BudgetEstimate;
   model_version: string;
 }
 
