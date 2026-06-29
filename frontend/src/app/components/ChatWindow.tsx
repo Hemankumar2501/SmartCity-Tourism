@@ -12,6 +12,8 @@ interface Message {
   isLoading?: boolean;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 export default function ChatWindow() {
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -127,7 +129,7 @@ export default function ChatWindow() {
 
       // 3) POST to the FastAPI backend
       const res = await fetch(
-        "http://127.0.0.1:8000/api/v1/ai-planner/generate",
+        `${API_BASE_URL}/api/v1/ai-planner/generate`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -194,7 +196,7 @@ export default function ChatWindow() {
       );
     } catch (error: any) {
       console.error("ChatWindow fetch error:", error);
-      const errorMsg = `⚠️ Concierge Error: Could not reach the AI Planner service.\n\nPlease verify the FastAPI backend is running at:\nhttp://127.0.0.1:8000\n\nDetails: ${error.message || error}`;
+      const errorMsg = `⚠️ Concierge Error: Could not reach the AI Planner service.\n\nPlease verify the FastAPI backend is running at:\n${API_BASE_URL}\n\nDetails: ${error.message || error}`;
 
       setMessages((prev) =>
         prev.map((msg) =>

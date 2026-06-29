@@ -50,6 +50,8 @@ interface SentimentResponse {
   };
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 export default function page() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "planner" | "reviews">("dashboard");
 
@@ -84,7 +86,7 @@ export default function page() {
     };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/ai-planner/generate", {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ai-planner/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -120,7 +122,7 @@ export default function page() {
     };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/reviews/analyze", {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reviews/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
