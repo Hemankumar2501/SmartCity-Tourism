@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 interface User {
   name: string;
@@ -25,7 +26,7 @@ interface AuthContextType {
   showLoginModal: boolean;
   savedItineraries: SavedItinerary[];
   setShowLoginModal: (show: boolean) => void;
-  login: (name: string, email: string) => void;
+  login: () => void;
   logout: () => void;
   saveItinerary: (itinerary: Omit<SavedItinerary, "id" | "savedAt">) => boolean;
   deleteItinerary: (id: string) => void;
@@ -34,19 +35,28 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [savedItineraries, setSavedItineraries] = useState<SavedItinerary[]>([]);
 
-  // Hydrate auth state from localStorage on load
+  // Synchronize next-auth session with internal auth state
   useEffect(() => {
-    const storedUser = localStorage.getItem("smart_tourism_user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      loadSavedItineraries(parsedUser.email);
+    if (session?.user) {
+      const email = session.user.email || "anonymous@skygrid.io";
+      const loggedUser: User = {
+        name: session.user.name || "Smart Tourist",
+        email: email,
+        avatar: session.user.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+      };
+      setUser(loggedUser);
+      loadSavedItineraries(email);
+      setShowLoginModal(false);
+    } else {
+      setUser(null);
+      setSavedItineraries([]);
     }
-  }, []);
+  }, [session]);
 
   const loadSavedItineraries = (email: string) => {
     const stored = localStorage.getItem(`saved_itineraries_${email}`);
@@ -57,19 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = (name: string, email: string) => {
-    const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`;
-    const newUser = { name, email, avatar };
-    setUser(newUser);
-    localStorage.setItem("smart_tourism_user", JSON.stringify(newUser));
-    setShowLoginModal(false);
-    loadSavedItineraries(email);
+  const login = () => {
+    signIn("google");
   };
 
   const logout = () => {
-    setUser(null);
-    setSavedItineraries([]);
-    localStorage.removeItem("smart_tourism_user");
+    signOut();
   };
 
   const saveItinerary = (itinerary: Omit<SavedItinerary, "id" | "savedAt">): boolean => {
@@ -112,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
 
-      {/* Beautiful Google Login Mock Dialog */}
+      {/* Beautiful Google Login NextAuth Dialog */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-[#070A13]/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
@@ -140,44 +143,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-gray-100">Sign in with Google</h3>
-              <p className="text-xs text-gray-400">
-                To save itineraries and view your travel command center dashboard.
+              <p className="text-xs text-gray-400 text-center">
+                Securely sign in using your Google credentials to manage and save your customized travel itineraries.
               </p>
             </div>
 
-            {/* Quick-sign-in Accounts */}
+            {/* Google Authentication Action */}
             <div className="space-y-3">
               <button
-                onClick={() => login("Sarah Connor", "sarah.connor@skygrid.io")}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/5 hover:border-cyan-500/30 rounded-xl text-left transition-all duration-300 hover:bg-white/10 group cursor-pointer"
+                onClick={login}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 rounded-xl text-sm font-bold text-white transition-all duration-300 shadow-[0_4px_15px_rgba(6,182,212,0.2)] hover:scale-[1.01] active:scale-95 cursor-pointer"
               >
-                <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center font-bold text-cyan-300 group-hover:scale-105 transition-transform text-xs">
-                  SC
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-200 block">Sarah Connor</span>
-                  <span className="text-[10px] text-gray-400">sarah.connor@skygrid.io</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => login("Alex Mercer", "alex.mercer@gentec.net")}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/5 hover:border-indigo-500/30 rounded-xl text-left transition-all duration-300 hover:bg-white/10 group cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-indigo-300 group-hover:scale-105 transition-transform text-xs">
-                  AM
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-gray-200 block">Alex Mercer</span>
-                  <span className="text-[10px] text-gray-400">alex.mercer@gentec.net</span>
-                </div>
+                Authenticate with Google
               </button>
             </div>
 
             <div className="flex gap-2">
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="w-full py-2.5 border border-white/10 text-gray-400 hover:text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full py-2.5 border border-white/10 text-gray-400 hover:text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer text-center"
               >
                 Cancel
               </button>

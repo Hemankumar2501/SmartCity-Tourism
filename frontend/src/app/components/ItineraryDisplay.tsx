@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { MapPin, DollarSign, Calendar, Clock, AlertTriangle, Download, Map } from "lucide-react";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import dynamic from "next/dynamic";
 import { useAuth } from "./AuthContext";
