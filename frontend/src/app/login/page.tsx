@@ -71,7 +71,7 @@ export default function LoginPage() {
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : "/",
+          redirectTo: typeof window !== "undefined" ? window.location.origin + "/auth/callback" : "",
         },
       });
       if (authError) {
@@ -103,10 +103,10 @@ export default function LoginPage() {
             <Cpu className="w-6 h-6 text-white" />
           </div>
           <h2 className="text-2xl font-black tracking-tight text-white uppercase bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
-            SmartCity Tourism AI Platform
+            SmartCity Tourism
           </h2>
           <p className="text-xs text-gray-400">
-            Sign in to access your SmartCity Tourism AI Platform.
+            Next-Gen AI Travel Engine
           </p>
         </div>
 

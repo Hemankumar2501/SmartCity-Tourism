@@ -30,17 +30,18 @@ export default function Navbar() {
         </div>
         <div>
           <h1 className="text-sm font-extrabold tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-indigo-500 to-indigo-600 dark:from-cyan-400 dark:to-indigo-400">
-            SmartCity Tourism AI Platform
+            SmartCity Tourism
           </h1>
           <span className="text-[9px] text-slate-500 dark:text-gray-400 uppercase tracking-widest block font-semibold">
-            Mega-Tourism Hub
+            Next-Gen AI Travel Engine
           </span>
         </div>
       </Link>
 
       {/* Navigation Links */}
-      <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/10">
-        {navLinks.map((link) => {
+      {user && pathname !== "/login" && (
+        <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/10">
+          {navLinks.map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.href;
           return (
@@ -58,7 +59,8 @@ export default function Navbar() {
             </Link>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Theme Toggles & Authentication */}
       <div className="flex items-center gap-4">
