@@ -23,6 +23,30 @@ function LoginPageContent() {
     }
   }, [searchParams]);
 
+  // Listen for auth state change to handle client-side session establishment
+  useEffect(() => {
+    if (!supabase || !supabase.auth) return;
+
+    // Check active session immediately
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (session) {
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+        router.push("/dashboard");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session) {
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+        router.push("/dashboard");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -81,6 +105,10 @@ function LoginPageContent() {
         provider: "google",
         options: {
           redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
       if (authError) {
