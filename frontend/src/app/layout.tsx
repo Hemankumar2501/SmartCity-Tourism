@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WanderWise AI",
-  description: "AI-Powered Enterprise Smart Tourism Ecosystem",
+  title: "SmartCity Tourism AI Platform",
+  description: "AI-Powered Enterprise Smart City mega-tourism companion platform.",
 };
 
 import { AuthProvider } from "./components/AuthContext";

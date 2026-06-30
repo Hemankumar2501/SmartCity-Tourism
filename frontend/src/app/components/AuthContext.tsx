@@ -162,9 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-100">Sign in to WanderWise</h3>
+              <h3 className="text-lg font-bold text-gray-100">Sign in to SmartCity Tourism</h3>
               <p className="text-xs text-gray-400 text-center">
-                Securely sign in to manage and save your customized travel itineraries.
+                Securely sign in to your SmartCity Tourism AI Platform to manage and save travel itineraries.
               </p>
             </div>
 

@@ -230,7 +230,7 @@ class GeminiService:
 
             # Prepare contextual constraints
             system_directives = (
-                "You are 'WanderBot', a hyper-helpful, friendly AI travel assistant concierge for the WanderWise AI travel ecosystem.\n"
+                "You are 'WanderBot', a hyper-helpful, friendly AI travel assistant concierge for the SmartCity Tourism AI Platform.\n"
                 f"You MUST respond entirely in the language requested by the user: {language}. Do not use English unless the requested language is English. Under all circumstances, respond in {language}.\n"
                 "You are helping a traveler who is using your platform.\n"
             )
@@ -445,7 +445,7 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
             "Universal travel power adapter",
             "Breathable activewear and lightweight jacket",
             "Refillable insulated water container",
-            "Offline map packages downloaded on WanderWise App",
+            "Offline map packages downloaded on SmartCity Tourism App",
             "Sanitizer and small medical safety kit"
         ]
 
@@ -490,7 +490,7 @@ Return ONLY the raw JSON document. Do not wrap in markdown blocks.
             return lang_prefix + f"Here are the top-rated dining spots near the spots in {dest}:\n1. **Gourmet Hub** (Organic, Vegetarian options)\n2. **Metro Dining Hall** (Hyper-local foods)\n3. **SkyLine Lounge** (Stunning smart-city views, book in advance via unified app)."
         
         if "shuttle" in msg_lower or "transport" in msg_lower or "bus" in msg_lower:
-            return lang_prefix + f"Autonomous shuttle pods in {dest} run every 5 minutes. You can scan your WanderWise smart key card at any smart pole transit station to board instantly."
+            return lang_prefix + f"Autonomous shuttle pods in {dest} run every 5 minutes. You can scan your SmartCity Tourism smart key card at any smart pole transit station to board instantly."
 
         if "weather" in msg_lower or "pack" in msg_lower:
             return lang_prefix + f"The average temperature in {dest} is expected to be quite pleasant. Make sure to pack items listed in your checklist, including sun protection and comfortable walking shoes."

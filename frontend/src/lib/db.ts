@@ -1,5 +1,5 @@
 import { SavedItinerary } from "../app/components/AuthContext";
-import { supabase } from "./supabaseClient";
+import { supabase, isSupabaseConfigured } from "./supabaseClient";
 
 export interface MemoryItem {
   id: string;
@@ -10,16 +10,8 @@ export interface MemoryItem {
 }
 
 // Key prefixes for localStorage storage fallback
-const LOCAL_STORAGE_TRIP_PREFIX = "wanderwise_trip_";
-const LOCAL_STORAGE_USER_INDEX_PREFIX = "wanderwise_user_trips_";
-
-const isSupabaseConfigured = () => {
-  return (
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  );
-};
+const LOCAL_STORAGE_TRIP_PREFIX = "smartcity_trip_";
+const LOCAL_STORAGE_USER_INDEX_PREFIX = "smartcity_user_trips_";
 
 export const TripService = {
   /**
@@ -341,8 +333,8 @@ export const TripService = {
   cacheMemoryLocally(memory: MemoryItem) {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(`wanderwise_memory_${memory.id}`, JSON.stringify(memory));
-      const userMemoriesKey = `wanderwise_user_memories_${memory.email}`;
+      localStorage.setItem(`smartcity_memory_${memory.id}`, JSON.stringify(memory));
+      const userMemoriesKey = `smartcity_user_memories_${memory.email}`;
       const index = localStorage.getItem(userMemoriesKey);
       let ids: string[] = index ? JSON.parse(index) : [];
       if (!ids.includes(memory.id)) {
@@ -391,7 +383,7 @@ export const TripService = {
 
     if (typeof window === "undefined") return [];
 
-    const userMemoriesKey = `wanderwise_user_memories_${emailKey}`;
+    const userMemoriesKey = `smartcity_user_memories_${emailKey}`;
     const index = localStorage.getItem(userMemoriesKey);
     if (!index) return [];
 
@@ -399,7 +391,7 @@ export const TripService = {
       const ids: string[] = JSON.parse(index);
       const memories: MemoryItem[] = [];
       for (const id of ids) {
-        const item = localStorage.getItem(`wanderwise_memory_${id}`);
+        const item = localStorage.getItem(`smartcity_memory_${id}`);
         if (item) {
           memories.push(JSON.parse(item));
         }
@@ -435,8 +427,8 @@ export const TripService = {
 
     if (typeof window === "undefined") return false;
 
-    localStorage.removeItem(`wanderwise_memory_${id}`);
-    const userMemoriesKey = `wanderwise_user_memories_${emailKey}`;
+    localStorage.removeItem(`smartcity_memory_${id}`);
+    const userMemoriesKey = `smartcity_user_memories_${emailKey}`;
     const index = localStorage.getItem(userMemoriesKey);
     if (index) {
       try {

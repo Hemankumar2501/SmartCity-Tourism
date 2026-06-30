@@ -3,9 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-if (!supabaseUrl || !supabaseAnonKey) {
+export function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  return (
+    url.startsWith("https://") &&
+    key.length > 20 &&
+    !url.includes("ungaloda") &&
+    !key.includes("ungaloda")
+  );
+}
+
+if (!isSupabaseConfigured()) {
   console.warn(
-    "[Supabase] Warning: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined. Suppressing database queries and falling back to localStorage."
+    "[Supabase] Warning: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined or using template keys. Suppressing database queries and falling back to localStorage."
   );
 }
 

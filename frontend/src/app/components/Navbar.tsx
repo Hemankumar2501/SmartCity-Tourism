@@ -30,7 +30,7 @@ export default function Navbar() {
         </div>
         <div>
           <h1 className="text-sm font-extrabold tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-indigo-500 to-indigo-600 dark:from-cyan-400 dark:to-indigo-400">
-            WanderWise AI
+            SmartCity Tourism AI Platform
           </h1>
           <span className="text-[9px] text-slate-500 dark:text-gray-400 uppercase tracking-widest block font-semibold">
             Mega-Tourism Hub

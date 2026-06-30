@@ -29,13 +29,23 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      // Safe check if client is initialized with valid credentials
+      if (!supabase || !supabase.auth) {
+        throw new Error("Supabase auth client is not initialized. Please configure valid environment credentials.");
+      }
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError) {
-        setError(authError.message || "Invalid credentials.");
+        // Handle common API key errors gracefully
+        if (authError.message?.toLowerCase().includes("api key") || (authError as any).status === 401) {
+          setError("SmartCity Platform connection failed: The database API key configuration is incorrect. Falling back to offline operations.");
+        } else {
+          setError(authError.message || "Invalid credentials.");
+        }
       } else {
         // Sync active token to cookies immediately for middleware
         if (data.session) {
@@ -45,14 +55,19 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (err: any) {
-      setError("Authentication failed. Please try again.");
+      console.error("[Login] Authentication exception captured:", err);
+      setError(err.message || "Authentication system is offline. Please verify database connectivity settings.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setError(null);
     try {
+      if (!supabase || !supabase.auth) {
+        throw new Error("Supabase auth client is not initialized.");
+      }
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -62,8 +77,9 @@ export default function LoginPage() {
       if (authError) {
         setError(authError.message);
       }
-    } catch (err) {
-      setError("Google authentication failed.");
+    } catch (err: any) {
+      console.error("[Login] Google Auth exception captured:", err);
+      setError("Google authentication service is currently unavailable. Check platform API key configurations.");
     }
   };
 
@@ -87,10 +103,10 @@ export default function LoginPage() {
             <Cpu className="w-6 h-6 text-white" />
           </div>
           <h2 className="text-2xl font-black tracking-tight text-white uppercase bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
-            WanderWise AI
+            SmartCity Tourism AI Platform
           </h2>
           <p className="text-xs text-gray-400">
-            Sign in to access your production travel command hub.
+            Sign in to access your SmartCity Tourism AI Platform.
           </p>
         </div>
 

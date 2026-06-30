@@ -920,7 +920,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
       >
         <div className="border-b-2 border-slate-200 pb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">WanderWise AI Itinerary</h1>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">SmartCity Tourism AI Itinerary</h1>
             <p className="text-sm text-slate-500 mt-1">Smart City custom travel planner details</p>
           </div>
           <div className="text-right">
@@ -1023,7 +1023,7 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
         </div>
 
         <div className="border-t border-slate-200 pt-4 text-center text-[10px] text-slate-400">
-          Generated via WanderWise AI Smart Travel Assistant • Powered by {plan.model_version}
+          Generated via SmartCity Tourism AI Platform Smart Travel Assistant • Powered by {plan.model_version}
         </div>
       </div>
     </div>
