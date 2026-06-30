@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase || !supabase.auth) return;
 
     // Check current active session on load
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
       if (session?.user) {
         const email = session.user.email || "anonymous@skygrid.io";
         const name = session.user.user_metadata?.full_name || email.split("@")[0] || "Smart Tourist";
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (session?.user) {
         const email = session.user.email || "anonymous@skygrid.io";
         const name = session.user.user_metadata?.full_name || email.split("@")[0] || "Smart Tourist";
