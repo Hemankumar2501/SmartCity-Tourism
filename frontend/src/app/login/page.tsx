@@ -1,16 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Cpu, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 function LoginPageContent() {
   const router = useRouter();
@@ -19,6 +14,14 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamically resolve Supabase URL and Key at client-side runtime
+  const supabase = useMemo(() => {
+    return createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+    );
+  }, []);
 
   // Detect OAuth callback errors from URL query parameters
   useEffect(() => {
@@ -30,15 +33,15 @@ function LoginPageContent() {
 
   // Listen for auth state change to handle client-side session establishment
   useEffect(() => {
-    // Check active session immediately on mount
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    if (!supabase || !supabase.auth) return;
+
+    // Check active session immediately
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
       if (session) {
         document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
         router.push("/dashboard");
       }
-    };
-    checkSession();
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (session) {
@@ -50,7 +53,7 @@ function LoginPageContent() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [supabase, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +70,10 @@ function LoginPageContent() {
     setError(null);
 
     try {
+      if (!supabase || !supabase.auth) {
+        throw new Error("Supabase auth client is not initialized.");
+      }
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -98,6 +105,9 @@ function LoginPageContent() {
   const handleGoogleSignIn = async () => {
     setError(null);
     try {
+      if (!supabase || !supabase.auth) {
+        throw new Error("Supabase auth client is not initialized.");
+      }
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

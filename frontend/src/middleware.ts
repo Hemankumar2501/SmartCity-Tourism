@@ -3,35 +3,27 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
-  // 1. CHECK FOR OAUTH AUTHENTICATION CODE IN QUERY PARAMS
-  // If the request contains a 'code' parameter, bypass the auth guard to let the callback route handle it
-  if (request.nextUrl.searchParams.has("code")) {
-    return response;
-  }
-
-  // Exempt auth callback route from authentication checks
-  if (pathname.startsWith("/auth/callback")) {
-    return response;
-  }
-
-  // Allow public assets and API routes through without session checks
+  // 1. STRICT BYPASS INTERCEPTOR BLOCK
+  // If path starts with /auth, contains a code parameter, or is a public/static asset, bypass instantly
   if (
+    pathname.startsWith("/auth") ||
+    searchParams.has("code") ||
+    pathname.startsWith("/_next") ||
     pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
     pathname.startsWith("/trip/") ||
+    pathname === "/signup" ||
     pathname === "/favicon.ico"
   ) {
-    return response;
+    return NextResponse.next({ request });
   }
 
+  let response = NextResponse.next({ request });
+
   // 2. ALIGN COOKIE PARSING SCHEME
-  // Read the local verification token (sb-access-token)
   const localToken = request.cookies.get("sb-access-token")?.value;
 
-  // Create a Supabase client that reads/writes cookies on the request/response pair
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -62,15 +54,15 @@ export async function middleware(request: NextRequest) {
   // Combine checks: consider user authenticated if a Supabase SSR session exists OR a local token is present
   const isUserAuthenticated = !!session || !!localToken;
 
-  // If the user is authenticated and is trying to access login/signup, redirect to dashboard
-  if (isUserAuthenticated && (pathname === "/login" || pathname === "/signup")) {
+  // If the user is authenticated and is trying to access login, redirect to dashboard
+  if (isUserAuthenticated && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
-  // If not authenticated and the route is not the login or signup page, redirect to login
-  if (!isUserAuthenticated && pathname !== "/login" && pathname !== "/signup") {
+  // If not authenticated and the route is not the login page, redirect to login
+  if (!isUserAuthenticated && pathname !== "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
