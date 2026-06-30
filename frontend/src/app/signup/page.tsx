@@ -36,6 +36,9 @@ export default function SignupPage() {
     setError(null);
 
     try {
+      if (!supabase || !supabase.auth) {
+        throw new Error("Supabase auth client is not initialized.");
+      }
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,

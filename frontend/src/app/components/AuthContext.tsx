@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Synchronize Supabase authentication state
   useEffect(() => {
+    if (!supabase || !supabase.auth) return;
+
     // Check current active session on load
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -94,7 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (supabase && supabase.auth) {
+      await supabase.auth.signOut();
+    }
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }

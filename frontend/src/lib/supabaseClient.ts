@@ -14,20 +14,24 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+let supabaseInstance: any = null;
+
 if (!isSupabaseConfigured()) {
-  console.warn(
-    "[Supabase] Warning: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined or using template keys. Suppressing database queries and falling back to localStorage."
+  console.error(
+    "[Supabase Config Missing] Warning: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined or using template keys. Client will not be initialized."
   );
+} else {
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
 }
 
-export const supabase = createClient(
-  supabaseUrl || "https://dummy-url.supabase.co",
-  supabaseAnonKey || "dummy-anon-key"
-);
+export const supabase = supabaseInstance;
 
 // Connection test helper with console logs for debugging
 async function testSupabaseConnection() {
-  if (!supabaseUrl || !supabaseAnonKey) return;
+  if (!supabase) return;
   try {
     const { data, error } = await supabase
       .from("trips")
