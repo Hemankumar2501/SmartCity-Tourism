@@ -1,45 +1,50 @@
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get("sb-access-token");
+export async function middleware(request: NextRequest) {
+  const res = NextResponse.next();
   const { pathname } = request.nextUrl;
 
-  // Exempt auth callback route from authentication checks
+  // CRITICAL: Allow the auth callback route to pass through unconditionally.
+  // Blocking this route prevents the OAuth code exchange from completing.
   if (pathname.startsWith("/auth/callback")) {
-    return NextResponse.next();
+    return res;
   }
 
-  // Redirect to dashboard if already logged in and trying to access login or signup
-  if (token && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
+  // Allow public assets and API routes through without session checks
+  if (
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/trip/") ||
+    pathname === "/favicon.ico"
+  ) {
+    return res;
+  }
+
+  // Create a Supabase client that reads/writes cookies on the request/response pair
+  const supabase = createMiddlewareClient({ req: request, res });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // If the user has a session and is trying to access login/signup, redirect to dashboard
+  if (session && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
-  // Bypass checks for assets, logins, API requests
-  if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
-    pathname.startsWith("/trip/") ||
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
-    pathname === "/favicon.ico"
-  ) {
-    return NextResponse.next();
-  }
-
-  // Redirect to login if no auth token cookie is found
-  if (!token) {
+  // If no session and the route is not the login or signup page, redirect to login
+  if (!session && pathname !== "/login" && pathname !== "/signup") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {
-  // Apply middleware to all matching paths
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

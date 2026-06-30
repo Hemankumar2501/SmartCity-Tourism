@@ -1,6 +1,7 @@
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -8,30 +9,23 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     try {
-      if (!supabase || !supabase.auth) {
-        throw new Error("Supabase client is not initialized.");
-      }
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) {
-        console.error("Error exchanging code for session:", error.message);
-        return NextResponse.redirect(new URL("/login?error=exchange_failed", request.url));
-      }
+      const supabase = createRouteHandlerClient({ cookies });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-      if (data?.session) {
-        const response = NextResponse.redirect(new URL("/dashboard", request.url));
-        response.cookies.set("sb-access-token", data.session.access_token, {
-          path: "/",
-          maxAge: 604800,
-          sameSite: "lax",
-          secure: true,
-        });
-        return response;
+      if (error) {
+        console.error("[Auth Callback] Code exchange failed:", error.message);
+        return NextResponse.redirect(
+          new URL("/login?error=exchange_failed", request.url)
+        );
       }
     } catch (err) {
-      console.error("Exception in auth callback route:", err);
+      console.error("[Auth Callback] Exception during code exchange:", err);
+      return NextResponse.redirect(
+        new URL("/login?error=callback_exception", request.url)
+      );
     }
   }
 
-  // Redirect to login if something goes wrong or no code
-  return NextResponse.redirect(new URL("/login", request.url));
+  // Redirect to dashboard on success (or if no code was provided)
+  return NextResponse.redirect(new URL("/dashboard", request.url));
 }
