@@ -36,27 +36,52 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      if (!supabase || !supabase.auth) {
-        throw new Error("Supabase auth client is not initialized.");
-      }
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-          },
-        },
-      });
+      let signupSuccess = false;
 
-      if (signUpError) {
-        setError(signUpError.message || "Failed to create account.");
-      } else {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push("/login");
-        }, 2000);
+      // 1. Try Supabase Auth first
+      if (supabase && supabase.auth) {
+        try {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name,
+              },
+            },
+          });
+
+          if (!signUpError) {
+            signupSuccess = true;
+          } else {
+            console.warn("[Signup] Supabase signup failed, trying local fallback:", signUpError.message);
+          }
+        } catch (supaErr) {
+          console.warn("[Signup] Supabase signup exception, trying local fallback:", supaErr);
+        }
       }
+
+      // 2. Parallel local registration so they can log in offline
+      const registeredUsersStr = localStorage.getItem("smartcity_registered_users");
+      let registeredUsers = [];
+      if (registeredUsersStr) {
+        try {
+          registeredUsers = JSON.parse(registeredUsersStr);
+        } catch (e) {
+          console.error("Failed to parse registered users:", e);
+        }
+      }
+
+      const userExists = registeredUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase());
+      if (!userExists) {
+        registeredUsers.push({ name, email, password });
+        localStorage.setItem("smartcity_registered_users", JSON.stringify(registeredUsers));
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
     } catch (err: any) {
       setError("An unexpected error occurred. Please try again.");
     } finally {

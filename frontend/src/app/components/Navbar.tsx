@@ -117,7 +117,7 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* User Session Info / Google Login button */}
+        {/* User Session Info / Login button */}
         {user ? (
           <div className="flex items-center gap-3">
             <div className="hidden lg:flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1.5 pr-3 rounded-lg border border-slate-200 dark:border-white/5">

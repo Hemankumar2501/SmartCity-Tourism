@@ -114,7 +114,7 @@ export default function SharedTripPage() {
                   Shared AI Journey Map
                 </span>
                 <span className="text-xs text-slate-600 dark:text-gray-300 font-medium">
-                  Enjoying this itinerary? Sign in with Google to save this trip or build your own customized paths.
+                  Enjoying this itinerary? Sign in to save this trip or build your own customized paths.
                 </span>
               </div>
             </div>

@@ -75,10 +75,10 @@ export async function middleware(request: NextRequest) {
     console.warn("[Middleware] Supabase environment variables are missing. Using local token synchronization check.");
   }
 
-  // If the user is authenticated and is trying to access login, redirect to dashboard
+  // If the user is authenticated and is trying to access login, redirect to Home
   if (isUserAuthenticated && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

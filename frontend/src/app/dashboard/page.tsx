@@ -90,7 +90,7 @@ export default function Dashboard() {
               onClick={login}
               className={`w-full py-2.5 text-xs font-bold cursor-pointer transition-colors ${themeClasses.btn}`}
             >
-              Sign In with Google
+              Sign In
             </button>
           </div>
         )}
