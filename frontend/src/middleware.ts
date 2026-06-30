@@ -5,6 +5,18 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("sb-access-token");
   const { pathname } = request.nextUrl;
 
+  // Exempt auth callback route from authentication checks
+  if (pathname.startsWith("/auth/callback")) {
+    return NextResponse.next();
+  }
+
+  // Redirect to dashboard if already logged in and trying to access login or signup
+  if (token && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   // Bypass checks for assets, logins, API requests
   if (
     pathname.startsWith("/login") ||
