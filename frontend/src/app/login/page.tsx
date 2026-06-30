@@ -6,9 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Cpu, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
+import { useAuth } from "../components/AuthContext";
 
 function LoginPageContent() {
   const router = useRouter();
+  const { setLocalSession } = useAuth();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -135,10 +137,8 @@ function LoginPageContent() {
             email: matchedUser.email,
             avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(matchedUser.email)}`,
           };
-          localStorage.setItem("smartcity_local_user", JSON.stringify(localUser));
-          document.cookie = `sb-access-token=mock-token-${matchedUser.email}; path=/; max-age=604800; SameSite=Lax; Secure`;
+          setLocalSession(localUser);
           router.push("/");
-          router.refresh();
         } else {
           // If not found in registered users, create on-the-fly to guarantee workable login
           if (password.length >= 6) {
@@ -149,10 +149,8 @@ function LoginPageContent() {
             };
             const updatedUsers = [...registeredUsers, { name: localUser.name, email, password }];
             localStorage.setItem("smartcity_registered_users", JSON.stringify(updatedUsers));
-            localStorage.setItem("smartcity_local_user", JSON.stringify(localUser));
-            document.cookie = `sb-access-token=mock-token-${email}; path=/; max-age=604800; SameSite=Lax; Secure`;
+            setLocalSession(localUser);
             router.push("/");
-            router.refresh();
           } else {
             setError("Invalid credentials. Please check your password and try again.");
           }

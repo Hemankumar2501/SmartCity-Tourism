@@ -33,6 +33,7 @@ interface AuthContextType {
   logout: () => void;
   saveItinerary: (itinerary: Omit<SavedItinerary, "id" | "savedAt"> & { id?: string }) => Promise<boolean>;
   deleteItinerary: (id: string) => Promise<void>;
+  setLocalSession: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -162,6 +163,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadSavedItineraries(user.email);
   };
 
+  const setLocalSession = (localUser: User) => {
+    setUser(localUser);
+    loadSavedItineraries(localUser.email);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("smartcity_local_user", JSON.stringify(localUser));
+      document.cookie = `sb-access-token=mock-token-${localUser.email}; path=/; max-age=604800; SameSite=Lax; Secure`;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -173,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         saveItinerary,
         deleteItinerary,
+        setLocalSession,
       }}
     >
       {children}
