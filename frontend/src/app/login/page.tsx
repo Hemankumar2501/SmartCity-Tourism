@@ -17,10 +17,13 @@ function LoginPageContent() {
 
   // Dynamically resolve Supabase URL and Key at client-side runtime
   const supabase = useMemo(() => {
-    return createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key || url === "undefined" || key === "undefined" || url.trim() === "" || key.trim() === "") {
+      console.warn("[Login] Supabase environment variables are missing or invalid.");
+      return null;
+    }
+    return createBrowserClient(url, key);
   }, []);
 
   // Detect OAuth callback errors from URL query parameters
@@ -71,7 +74,7 @@ function LoginPageContent() {
 
     try {
       if (!supabase || !supabase.auth) {
-        throw new Error("Supabase auth client is not initialized.");
+        throw new Error("Supabase auth client is not initialized. Please configure database connectivity settings.");
       }
 
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -91,7 +94,7 @@ function LoginPageContent() {
         if (data.session) {
           document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
         }
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
       }
     } catch (err: any) {
@@ -106,7 +109,7 @@ function LoginPageContent() {
     setError(null);
     try {
       if (!supabase || !supabase.auth) {
-        throw new Error("Supabase auth client is not initialized.");
+        throw new Error("Supabase auth client is not initialized. Please configure database connectivity settings.");
       }
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",

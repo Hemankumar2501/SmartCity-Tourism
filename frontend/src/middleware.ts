@@ -24,35 +24,56 @@ export async function middleware(request: NextRequest) {
   // 2. ALIGN COOKIE PARSING SCHEME
   const localToken = request.cookies.get("sb-access-token")?.value;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          // Set cookies on the request (for downstream server components)
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-          // Clone the response and set cookies on it (for the browser)
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
+  // Combine checks: consider user authenticated if a local token is present from cookie sync
+  let isUserAuthenticated = !!localToken;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const hasValidEnv = supabaseUrl && 
+                       supabaseAnonKey && 
+                       supabaseUrl !== "undefined" && 
+                       supabaseAnonKey !== "undefined" &&
+                       supabaseUrl.trim() !== "" &&
+                       supabaseAnonKey.trim() !== "";
+
+  if (hasValidEnv) {
+    try {
+      const supabase = createServerClient(
+        supabaseUrl,
+        supabaseAnonKey,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll();
+            },
+            setAll(cookiesToSet) {
+              // Set cookies on the request (for downstream server components)
+              cookiesToSet.forEach(({ name, value }) => {
+                request.cookies.set(name, value);
+              });
+              // Clone the response and set cookies on it (for the browser)
+              response = NextResponse.next({ request });
+              cookiesToSet.forEach(({ name, value, options }) => {
+                response.cookies.set(name, value, options);
+              });
+            },
+          },
+        }
+      );
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      // Consider user authenticated if session exists or local token is present
+      isUserAuthenticated = !!session || !!localToken;
+    } catch (e) {
+      console.error("[Middleware] Supabase client initialization or session resolution failed:", e);
     }
-  );
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Combine checks: consider user authenticated if a Supabase SSR session exists OR a local token is present
-  const isUserAuthenticated = !!session || !!localToken;
+  } else {
+    console.warn("[Middleware] Supabase environment variables are missing. Using local token synchronization check.");
+  }
 
   // If the user is authenticated and is trying to access login, redirect to dashboard
   if (isUserAuthenticated && pathname === "/login") {
