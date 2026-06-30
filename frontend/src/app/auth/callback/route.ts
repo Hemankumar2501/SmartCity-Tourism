@@ -30,11 +30,16 @@ export async function GET(request: NextRequest) {
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => {
+                // Update BOTH the cookieStore instance AND append dynamic cookie data directly to response
                 cookieStore.set(name, value, options);
+                response.cookies.set(name, value, options);
               });
             } catch (cookieError) {
               // Server component layout architecture backup pipeline injection fallback
-              console.warn("[Auth Callback] Cookie mutations handled via alternate payload buffer strategy");
+              console.warn(
+                "[Auth Callback] Cookie mutations handled via alternate payload buffer strategy",
+                cookieError
+              );
             }
           },
         },
