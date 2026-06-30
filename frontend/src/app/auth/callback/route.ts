@@ -7,43 +7,53 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
 
-  if (code) {
-    try {
-      const cookieStore = await cookies();
-
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() {
-              return cookieStore.getAll();
-            },
-            setAll(cookiesToSet) {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options);
-              });
-            },
-          },
-        }
-      );
-
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-      if (error) {
-        console.error("[Auth Callback] Code exchange failed:", error.message);
-        return NextResponse.redirect(
-          new URL("/login?error=exchange_failed", request.url)
-        );
-      }
-    } catch (err) {
-      console.error("[Auth Callback] Exception during code exchange:", err);
-      return NextResponse.redirect(
-        new URL("/login?error=callback_exception", request.url)
-      );
-    }
+  // If no code is present, redirect with a descriptive error
+  if (!code) {
+    console.error("[Auth Callback] No code parameter found in URL");
+    return NextResponse.redirect(
+      new URL("/login?error=missing_code", request.url)
+    );
   }
 
-  // Redirect to dashboard on success
-  return NextResponse.redirect(new URL("/dashboard", request.url));
+  try {
+    const cookieStore = await cookies();
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      console.error("[Auth Callback] Code exchange failed:", error.message);
+      return NextResponse.redirect(
+        new URL(
+          `/login?error=${encodeURIComponent(error.message)}`,
+          request.url
+        )
+      );
+    }
+
+    // Success — redirect to dashboard
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  } catch (err: any) {
+    const message = err?.message || "Unknown callback exception";
+    console.error("[Auth Callback] Exception during code exchange:", message);
+    return NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(message)}`, request.url)
+    );
+  }
 }
