@@ -1,15 +1,15 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next();
+  let response = NextResponse.next({ request });
   const { pathname } = request.nextUrl;
 
-  // CRITICAL: Allow the auth callback route to pass through unconditionally.
+  // CRITICAL: Allow the auth callback to pass through without any session checks.
   // Blocking this route prevents the OAuth code exchange from completing.
   if (pathname.startsWith("/auth/callback")) {
-    return res;
+    return response;
   }
 
   // Allow public assets and API routes through without session checks
@@ -19,11 +19,33 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/trip/") ||
     pathname === "/favicon.ico"
   ) {
-    return res;
+    return response;
   }
 
   // Create a Supabase client that reads/writes cookies on the request/response pair
-  const supabase = createMiddlewareClient({ req: request, res });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          // Set cookies on the request (for downstream server components)
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          // Clone the response and set cookies on it (for the browser)
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -42,7 +64,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return res;
+  return response;
 }
 
 export const config = {
